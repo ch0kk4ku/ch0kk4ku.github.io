@@ -11,10 +11,13 @@ export const site = {
   name: "Ch0kk4ku's Blog",
   desc: "有趣有盼，无灾无难。",
   url: "https://ch0kk4ku.github.io",
-  // 头像：放在 public/ 下用绝对路径引用（MDX 拿不到 src/assets 的哈希路径）。
-  // 源头像是 src/assets/images/avatar.avif，这里用脚本裁出 256×256 的 AVIF 副本，
-  // 换头像时重新生成那份副本（或直接换成任意图片直链）即可。
+  // 头像：放在 public/ 下（MDX 拿不到 src/assets 的哈希路径）。
+  // 源头像是 src/assets/images/avatar.avif，用脚本裁出 256×256 的 AVIF 副本；
+  // 换头像时重新生成那份副本，或直接换成任意图片直链。
   avatar: "/assets/images/avatar.avif",
+  // 卡片上「头像链接」那一栏展示/复制的内容：给完整地址，
+  // 这样来访者直接复制走也能用（显示仍用上面的 avatar，避免依赖当前域名）
+  avatarUrl: "https://ch0kk4ku.github.io/assets/images/avatar.avif",
 };
 
 {/* ============================= */}
@@ -49,7 +52,7 @@ export const site = {
           { label: "站点名称", value: site.name },
           { label: "站点描述", value: site.desc },
           { label: "站点链接", value: site.url },
-          { label: "头像链接", value: site.avatar },
+          { label: "头像链接", value: site.avatarUrl },
         ].map((item) => (
           <div class="flex items-center justify-between gap-2 rounded-lg bg-black/5 dark:bg-white/5 px-3 py-2">
             <div class="min-w-0">
