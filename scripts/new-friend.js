@@ -163,22 +163,7 @@ const EXT_BY_MIME = {
 // 不经 sharp 重编码、直接原样存盘的格式
 const PASSTHROUGH_MIME = new Set(["image/svg+xml", "image/gif"]);
 
-/** 从 URL 或 content-type 推断扩展名 */
-function guessExtension(imageUrl, contentType) {
-	const mime = (contentType ?? "").split(";")[0].trim().toLowerCase();
-	if (EXT_BY_MIME[mime]) return EXT_BY_MIME[mime];
-	try {
-		const ext = path
-			.extname(new URL(imageUrl).pathname)
-			.replace(/^\./, "")
-			.toLowerCase();
-		if (MIME_BY_EXT[ext]) return ext;
-	} catch {
-		// URL 解析失败就继续走默认值
-	}
-	return "png";
-}
-
+/** 生成 public/friends/ 下的文件名（按站点名转拼音） */
 function safeFileName(title, ext) {
 	const base = slugifySegment(title) || "friend";
 	return `${base}.${ext}`;
