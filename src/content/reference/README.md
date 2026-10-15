@@ -20,6 +20,7 @@
 | `encrypted-demo.md` | 文章加密（`password` / `passwordHint`） |
 | `mdx-example.mdx` | 在文章里使用 MDX 组件 |
 | `draft.md` | `draft: true` 草稿的隐藏机制 |
+| `obsidian-callout-syntax.md` | Obsidian callout（提醒框）语法：27 种类型、折叠、嵌套与常见坑 |
 | `images/` | 上述文章引用的配图 |
 
 ## 想重新看到它们

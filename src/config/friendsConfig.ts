@@ -21,18 +21,24 @@ export const friendsPageConfig: FriendsPageConfig = {
 };
 
 // 友链配置
-// 当前为空：页面仍然可用，但不会展示任何友链卡片。
-// 添加友链时按下面的结构往数组里追加一项即可：
+// 当前为空：页面仍然可用（只显示本站信息卡片），但不会展示任何友链卡片。
+//
+// 添加友链 = 往下面的数组里追加一项，保存后重新构建即可。字段含义：
 //
 //	{
-//		title: "朋友的站点名",
-//		imgurl: "https://朋友的站点/avatar.png",
-//		desc: "一句话介绍",
-//		siteurl: "https://朋友的站点",
-//		tags: ["Blog"],
-//		weight: 10,        // 权重，数字越大排序越靠前
-//		enabled: true,     // false 则隐藏但保留配置
+//		title: "朋友的站点名",                       // 卡片标题
+//		imgurl: "https://朋友的站点/avatar.png",     // 头像/Logo，必须是完整 URL 或以 / 开头的路径
+//		desc: "一句话介绍",                          // 卡片描述
+//		siteurl: "https://朋友的站点",               // 点击卡片跳转的地址
+//		tags: ["Blog"],                              // 分类标签，数组，可写多个
+//		weight: 10,                                  // 权重，数字越大排序越靠前
+//		enabled: true,                               // 设为 false 可隐藏但保留配置
 //	},
+//
+// 多条友链就写多个对象，用逗号分隔，例如：
+//
+//	{ title: "A 的博客", imgurl: "https://a.com/avatar.png", desc: "A", siteurl: "https://a.com", tags: ["Blog"], weight: 10, enabled: true },
+//	{ title: "B 的博客", imgurl: "https://b.com/avatar.png", desc: "B", siteurl: "https://b.com", tags: ["Blog"], weight: 8, enabled: true },
 export const friendsConfig: FriendLink[] = [];
 
 // 获取启用的友链并进行排序

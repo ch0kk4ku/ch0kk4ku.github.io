@@ -224,10 +224,13 @@ export const siteConfig: SiteConfig = {
 	post: {
 		// 提醒框（Admonitions）配置，修改后需要重启开发服务器才能生效
 		// 主题：'github' | 'obsidian' | 'vitepress' | 'docusaurus'，每个主题风格和语法不同，可根据喜好选择
+		// 当前使用 'obsidian'：完整支持 Obsidian 原生的 > [!type] 语法，
+		// 包含 27 种类型与别名（note/tip/warning/danger/quote… 以及 tldr/done/error 等），
+		// 并支持折叠（> [!note]- 与 > [!note]+）以及 callout 嵌套。
 		rehypeCallouts: {
-			theme: "github",
+			theme: "obsidian",
 			// 是否启用兼容 Python-Markdown 风格的 admonition 语法（!!!和???语法）
-			// 注意：只有 theme 配置成 obsidian 主题才能基本支持这些语法，其他主题会有样式问题或不兼容的情况
+			// 保持关闭：Obsidian 本身没有 !!! 语法，开启后反而会偏离「原汁原味」的 Obsidian 写法
 			enablePythonMarkdownAdmonitions: false,
 		},
 		// 文章页底部的"上次编辑时间"卡片开关
