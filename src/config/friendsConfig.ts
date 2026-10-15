@@ -39,7 +39,17 @@ export const friendsPageConfig: FriendsPageConfig = {
 //
 //	{ title: "A 的博客", imgurl: "https://a.com/avatar.png", desc: "A", siteurl: "https://a.com", tags: ["Blog"], weight: 10, enabled: true },
 //	{ title: "B 的博客", imgurl: "https://b.com/avatar.png", desc: "B", siteurl: "https://b.com", tags: ["Blog"], weight: 8, enabled: true },
-export const friendsConfig: FriendLink[] = [];
+export const friendsConfig: FriendLink[] = [
+	{
+		title: "Ch0kk4ku's CNBlog",
+		imgurl: "https://pic.cnblogs.com/avatar/3470310/20240621112849.png",
+		desc: "我的旧博客",
+		siteurl: "https://www.cnblogs.com/ch0kk4ku",
+		tags: ["Blog"],
+		weight: 10,
+		enabled: true,
+	},
+];
 
 // 获取启用的友链并进行排序
 export const getEnabledFriends = (): FriendLink[] => {
