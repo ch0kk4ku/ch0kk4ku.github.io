@@ -58,6 +58,24 @@ export const friendsConfig: FriendLink[] = [
 		weight: 20,
 		enabled: true,
 	},
+	{
+		title: "Dalang",
+		imgurl: "/friends/dalang.webp",
+		desc: "本网页是写着玩的,不定时更新,里面可能会有我半夜发疯想的东西和一些记录啥啥啥的。",
+		siteurl: "https://xiaolang0817.github.io/personal_blog/",
+		tags: ["Blog"],
+		weight: 12,
+		enabled: true,
+	},
+	{
+		title: "yuanmuyan",
+		imgurl: "/friends/yuanmuyan.webp",
+		desc: "CERT-EU 名人堂在榜巨佬。",
+		siteurl: "https://yuanmuyan.github.io/",
+		tags: ["Blog"],
+		weight: 12,
+		enabled: true,
+	},
 ];
 
 // 获取启用的友链并进行排序
