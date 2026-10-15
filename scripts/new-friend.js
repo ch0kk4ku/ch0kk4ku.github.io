@@ -9,24 +9,33 @@
  * 它只做一件事：把你填的信息追加进 src/config/friendsConfig.ts 的 friendsConfig 数组，
  * 不需要你手写 TypeScript 对象，也不会碰文件里的其它内容。
  *
- * 头像图片（本项目采用「自托管」）：
- *   博客园、微博、B 站等图床校验 Referer，页面直接引用远程图片会 403。
- *   所以 --img 给远程 URL 时，脚本会自己把图片取回来存到本地：
+ * 头像图片（本项目采用「自托管」，默认按中间裁成正方形）：
+ *   支持三种输入：本地图片文件、远程 URL、/ 开头的站内路径。
+ *   博客园、微博、B 站等图床校验 Referer，页面直接引用远程图片会 403，
+ *   所以远程 URL 会由脚本自己取回来，和本地文件一样裁方后存到本地：
  *
  *     pnpm friend --title="朋友的博客" --url="https://friend.com" --img="https://friend.com/a.png"
- *       -> 图片存到 public/friends/朋友的博客.png，配置里写成 /friends/朋友的博客.png
+ *     pnpm friend --title="朋友的博客" --url="https://friend.com" --img="D:\pics\avatar.jpg"
+ *       -> 都存到 public/friends/朋友的博客.png，配置里写成 /friends/朋友的博客.png
  *
  *   可选参数：
- *     --embed        改成把图片转成 data URI 内嵌进配置（>256 KB 会自动回退为下载）
- *     --no-download  不做处理，保留原始远程 URL
+ *     --no-crop      不裁剪，保留原始比例
+ *     --embed        小图（<=256 KB）转成 data URI 内嵌进配置
+ *     --no-download  远程 URL 不做处理，保留原始地址
  */
 import fs from "node:fs";
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
 import { slugifySegment } from "./lib/slug.js";
 
 const CONFIG_PATH = path.resolve("src/config/friendsConfig.ts");
+const REPO_ROOT = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"..",
+);
 const ARRAY_START = "export const friendsConfig: FriendLink[] = [";
 
 // ---------------------------------------------------------------------------
@@ -106,15 +115,21 @@ const escapeForTs = (value) =>
 	String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
 // ---------------------------------------------------------------------------
-// 头像处理：把远程图片变成不会失效的本地引用
+// 头像处理：本地文件 / 远程图片 -> 裁成正方形 -> 自托管到 public/friends/
 // ---------------------------------------------------------------------------
 //
-// 背景：cnblogs、微博、B站等图床有防盗链，直接写远程 URL 会加载失败（403）。
-// 处理顺序：
-//   1. 远程 URL 默认 -> 下载到 public/friends/ 并改用站内路径（体积小、可缓存）
-//   2. 加 --embed     -> 转成 data URI 直接写进配置（单文件自包含，适合小图）
-//   3. 加 --no-download -> 保留原始 URL（不做处理）
-// 已经是 / 开头的站内路径或 data: 的，原样保留。
+// 支持的输入（--img 或交互式填写）：
+//   1. 本地图片文件：Windows 路径（D:\pic\a.png）、相对路径（./a.png / pic/a.png）、file:// URL
+//   2. 远程 URL     ：自动下载（不带 Referer，绕开博客园等图床的防盗链）
+//   3. / 开头的站内路径、data: URI：原样保留，不做处理
+//
+// 处理规则：
+//   · 默认按「中间裁剪」成正方形（取短边，position: centre），与卡片显示形状一致
+//   · --no-crop    保留原始比例，只做拷贝/下载
+//   · --embed      小图（<=256 KB）转成 data URI 内嵌进配置，否则仍自托管
+//   · --no-download 远程 URL 不做处理，原样保留
+//   · SVG 与动图（GIF/APNG）不裁剪、不重编码，原样拷贝，避免毁掉矢量与动画
+//   · JPEG 输出会去掉 alpha（避免出现粉边），其他格式保留透明通道
 
 const FRIENDS_PUBLIC_DIR = path.resolve("public/friends");
 const EMBED_SIZE_LIMIT = 256 * 1024; // 超过这个大小就不建议内嵌
@@ -145,6 +160,9 @@ const EXT_BY_MIME = {
 	"image/bmp": "bmp",
 };
 
+// 不经 sharp 重编码、直接原样存盘的格式
+const PASSTHROUGH_MIME = new Set(["image/svg+xml", "image/gif"]);
+
 /** 从 URL 或 content-type 推断扩展名 */
 function guessExtension(imageUrl, contentType) {
 	const mime = (contentType ?? "").split(";")[0].trim().toLowerCase();
@@ -166,39 +184,140 @@ function safeFileName(title, ext) {
 	return `${base}.${ext}`;
 }
 
-async function downloadImage(imageUrl, fileName) {
-	const res = await fetch(imageUrl, {
-		headers: { "User-Agent": UA, Accept: "image/*,*/*;q=0.8" },
-		redirect: "follow",
-	});
-	if (!res.ok) {
-		throw new Error(
-			`HTTP ${res.status}${res.status === 403 ? "（多半是防盗链）" : ""}`,
-		);
+/** 判断是否为本地文件输入，返回绝对路径（不是则返回 null） */
+function resolveLocalFile(value) {
+	let candidate = value;
+	if (/^file:\/\//i.test(value)) {
+		try {
+			candidate = fileURLToPath(value);
+		} catch {
+			return null;
+		}
 	}
-	const buffer = Buffer.from(await res.arrayBuffer());
-	if (buffer.length === 0) throw new Error("下载到 0 字节");
+	const attempts = [candidate];
+	if (!path.isAbsolute(candidate)) {
+		attempts.push(path.resolve(candidate), path.resolve(REPO_ROOT, candidate));
+	}
+	for (const p of attempts) {
+		try {
+			if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
+		} catch {
+			// 忽略无权限等异常，继续尝试下一个
+		}
+	}
+	return null;
+}
 
-	const ext = path.extname(fileName).replace(/^\./, "");
-	let finalName = fileName;
-	// 扩展名不可信时按 content-type 纠正
-	if (!MIME_BY_EXT[ext]) {
-		finalName = `${path.basename(fileName, path.extname(fileName))}.${guessExtension(imageUrl, res.headers.get("content-type"))}`;
+/**
+ * 按需裁成正方形（居中，取短边），并保持原格式返回。
+ * @returns {Promise<{buffer: Buffer, format: string, mime: string, cropped: boolean, note: string}>}
+ */
+async function toSquareBuffer(input, { crop }) {
+	const isBuffer = Buffer.isBuffer(input);
+	const meta = await sharp(
+		input,
+		isBuffer ? {} : { failOn: "none" },
+	).metadata();
+	const format = (meta.format ?? "png").toLowerCase();
+	const width = meta.width ?? 0;
+	const height = meta.height ?? 0;
+	const pages = meta.pages ?? 1;
+	const mime =
+		format === "jpg" || format === "jpeg"
+			? "image/jpeg"
+			: (MIME_BY_EXT[format] ?? "image/png");
+
+	// 矢量与动图原样返回，避免破坏
+	if (PASSTHROUGH_MIME.has(mime) || pages > 1) {
+		const reason = mime === "image/svg+xml" ? "SVG" : "动图";
+		const buffer = isBuffer ? input : fs.readFileSync(input);
+		return {
+			buffer,
+			format,
+			mime,
+			cropped: false,
+			note: `${reason}不裁剪，原样保存（${width}×${height}）`,
+		};
 	}
 
+	if (!crop || width === 0 || height === 0 || width === height) {
+		const buffer = isBuffer ? input : fs.readFileSync(input);
+		const size = width && height ? `${width}×${height}` : "未知尺寸";
+		return {
+			buffer,
+			format,
+			mime,
+			cropped: false,
+			note:
+				width === height
+					? `已是正方形（${width}×${height}）`
+					: `保持原比例（${size}）`,
+		};
+	}
+
+	const side = Math.min(width, height);
+	let pipeline = sharp(input, isBuffer ? {} : { failOn: "none" })
+		.rotate() // 依据 EXIF 自动摆正
+		.resize(side, side, { fit: "cover", position: "centre" });
+
+	if (mime === "image/jpeg")
+		pipeline = pipeline.flatten({ background: "#ffffff" });
+
+	switch (mime) {
+		case "image/jpeg":
+			pipeline = pipeline.jpeg({ quality: 88, mozjpeg: true });
+			break;
+		case "image/webp":
+			pipeline = pipeline.webp({ quality: 88 });
+			break;
+		case "image/avif":
+			pipeline = pipeline.avif({ quality: 70 });
+			break;
+		case "image/bmp":
+			pipeline = pipeline.png();
+			break;
+		default:
+			pipeline = pipeline.png({ compressionLevel: 9 });
+	}
+
+	const outBuffer = await pipeline.toBuffer();
+	return {
+		buffer: outBuffer,
+		format: mime === "image/bmp" ? "png" : format,
+		mime: mime === "image/bmp" ? "image/png" : mime,
+		cropped: true,
+		note: `已按中间裁剪为正方形（${width}×${height} → ${side}×${side}）`,
+	};
+}
+
+/** 写入 public/friends/ 并返回站内路径 */
+function saveToPublic(title, prepared) {
+	const ext =
+		prepared.format === "jpeg" ? "jpg" : (EXT_BY_MIME[prepared.mime] ?? "png");
+	const fileName = safeFileName(title, ext);
 	fs.mkdirSync(FRIENDS_PUBLIC_DIR, { recursive: true });
-	fs.writeFileSync(path.join(FRIENDS_PUBLIC_DIR, finalName), buffer);
-	return { webPath: `/friends/${finalName}`, bytes: buffer.length };
+	fs.writeFileSync(path.join(FRIENDS_PUBLIC_DIR, fileName), prepared.buffer);
+	return {
+		fileName,
+		webPath: `/friends/${fileName}`,
+		bytes: prepared.buffer.length,
+	};
 }
 
 /**
  * 把用户填的头像字段整理成最终写入配置的值。
  * - 空值 / data URI / 以 / 开头的站内路径：原样返回
- * - 其它（普通相对路径）：留空并提示
- * - 远程 URL：交给 resolveAvatar 下载或内嵌
+ * - 本地文件路径：裁方后拷进 public/friends/
+ * - 远程 URL：下载后裁方，按需内嵌
+ * - 其它（无效值）：留空并提示
  */
-async function prepareAvatar(rawUrl, title) {
-	const value = (rawUrl ?? "").trim();
+async function prepareAvatar(rawInput, title) {
+	const value = (rawInput ?? "").trim();
+	const opts = {
+		crop: !flags.has("no-crop"),
+		embed: flags.has("embed"),
+		noDownload: flags.has("no-download"),
+	};
 
 	if (!value) {
 		console.log("  头像处理：未填写，卡片将显示首字母占位图");
@@ -208,33 +327,36 @@ async function prepareAvatar(rawUrl, title) {
 		console.log("  头像处理：已是可用的本地形式，原样保留");
 		return value;
 	}
+
+	// ---- 本地文件 ----
+	const localPath = resolveLocalFile(value);
+	if (localPath) {
+		const original = fs.statSync(localPath).size;
+		const prepared = await toSquareBuffer(localPath, opts);
+		if (opts.embed && prepared.buffer.length <= EMBED_SIZE_LIMIT) {
+			console.log(
+				`  头像处理：本地文件 ${path.basename(localPath)}，${prepared.note}，已内嵌为 data URI（${(prepared.buffer.length / 1024).toFixed(1)} KB）`,
+			);
+			return `data:${prepared.mime};base64,${prepared.buffer.toString("base64")}`;
+		}
+		const saved = saveToPublic(title, prepared);
+		console.log(
+			`  头像处理：本地文件 ${path.basename(localPath)}（${(original / 1024).toFixed(1)} KB）→ ${prepared.note}，已拷到 public/friends/${saved.fileName}（${(saved.bytes / 1024).toFixed(1)} KB）`,
+		);
+		return saved.webPath;
+	}
+
+	// ---- 远程 URL ----
 	if (!/^https?:\/\//i.test(value)) {
 		console.log(
-			"  头像处理：不是完整 URL 也不是以 / 开头的路径，已留空（卡片会显示首字母占位图）",
+			"  头像处理：既不是存在的本地文件，也不是 http(s) URL，已留空（卡片会显示首字母占位图）",
 		);
 		return "";
 	}
-
-	const { value: resolved, note } = await resolveAvatar(value, title, {
-		embed: flags.has("embed"),
-		noDownload: flags.has("no-download"),
-	});
-	console.log(`  头像处理：${note}`);
-	return resolved;
-}
-
-/**
- * 处理头像字段：返回可直接写进配置的字符串。
- * @returns {Promise<{value: string, note: string}>}
- */
-async function resolveAvatar(rawUrl, title, { embed, noDownload }) {
-	const value = (rawUrl ?? "").trim();
-
-	if (!value) return { value: "", note: "未填写，卡片将显示首字母占位图" };
-	if (value.startsWith("data:"))
-		return { value, note: "已是 data URI，原样保留" };
-	if (value.startsWith("/")) return { value, note: "站内路径，原样保留" };
-	if (noDownload) return { value, note: "--no-download：保留原始远程 URL" };
+	if (opts.noDownload) {
+		console.log("  头像处理：--no-download，保留原始远程 URL（不裁剪）");
+		return value;
+	}
 
 	let res;
 	try {
@@ -243,45 +365,40 @@ async function resolveAvatar(rawUrl, title, { embed, noDownload }) {
 			redirect: "follow",
 		});
 	} catch (error) {
-		return { value, note: `下载失败（${error.message}），已保留原始 URL` };
+		console.log(`  头像处理：下载失败（${error.message}），已保留原始 URL`);
+		return value;
 	}
-
 	if (!res.ok) {
-		return {
-			value,
-			note: `下载失败（HTTP ${res.status}${res.status === 403 ? "，防盗链" : ""}），已保留原始 URL`,
-		};
+		console.log(
+			`  头像处理：下载失败（HTTP ${res.status}${res.status === 403 ? "，防盗链" : ""}），已保留原始 URL`,
+		);
+		return value;
 	}
 
-	const buffer = Buffer.from(await res.arrayBuffer());
-	const contentType = (res.headers.get("content-type") ?? "")
-		.split(";")[0]
-		.trim()
-		.toLowerCase();
-	const ext = guessExtension(value, contentType);
-	const mime = MIME_BY_EXT[ext] ?? "image/png";
+	const downloaded = Buffer.from(await res.arrayBuffer());
+	if (downloaded.length === 0) {
+		console.log("  头像处理：下载到 0 字节，已保留原始 URL");
+		return value;
+	}
 
-	if (embed) {
-		if (buffer.length > EMBED_SIZE_LIMIT) {
-			const saved = await downloadImage(value, safeFileName(title, ext));
-			return {
-				value: saved.webPath,
-				note: `图片 ${(buffer.length / 1024).toFixed(0)} KB 超过 ${EMBED_SIZE_LIMIT / 1024} KB，未内嵌，已改为下载到 ${saved.webPath}`,
-			};
+	const prepared = await toSquareBuffer(downloaded, opts);
+	if (opts.embed) {
+		if (prepared.buffer.length <= EMBED_SIZE_LIMIT) {
+			console.log(
+				`  头像处理：${prepared.note}，已内嵌为 data URI（${(prepared.buffer.length / 1024).toFixed(1)} KB）`,
+			);
+			return `data:${prepared.mime};base64,${prepared.buffer.toString("base64")}`;
 		}
-		return {
-			value: `data:${mime};base64,${buffer.toString("base64")}`,
-			note: `已内嵌为 data URI（${(buffer.length / 1024).toFixed(1)} KB）`,
-		};
+		console.log(
+			`  头像处理：裁剪后 ${(prepared.buffer.length / 1024).toFixed(0)} KB 超过 ${EMBED_SIZE_LIMIT / 1024} KB，未内嵌，改为自托管`,
+		);
 	}
 
-	const fileName = safeFileName(title, ext);
-	fs.mkdirSync(FRIENDS_PUBLIC_DIR, { recursive: true });
-	fs.writeFileSync(path.join(FRIENDS_PUBLIC_DIR, fileName), buffer);
-	return {
-		value: `/friends/${fileName}`,
-		note: `已下载到 public/friends/${fileName}（${(buffer.length / 1024).toFixed(1)} KB），配置里改写为站内路径`,
-	};
+	const saved = saveToPublic(title, prepared);
+	console.log(
+		`  头像处理：已下载（${(downloaded.length / 1024).toFixed(1)} KB），${prepared.note}，保存为 public/friends/${saved.fileName}（${(saved.bytes / 1024).toFixed(1)} KB）`,
+	);
+	return saved.webPath;
 }
 
 function renderEntry(entry) {
@@ -442,9 +559,13 @@ if (!/^https?:\/\//i.test(siteurl)) {
 	rl?.close();
 	process.exit(1);
 }
-let imgurl = await askOrFlag("img", "头像图片地址（完整 URL 或以 / 开头）", {
-	fallback: "",
-});
+let imgurl = await askOrFlag(
+	"img",
+	"头像图片（本地文件路径 / 远程 URL / 以 / 开头的站内路径）",
+	{
+		fallback: "",
+	},
+);
 imgurl = await prepareAvatar(imgurl, title);
 const desc = await askOrFlag("desc", "一句话描述", { fallback: "" });
 const tagsRaw = await askOrFlag("tags", "分类标签，逗号分隔", {
