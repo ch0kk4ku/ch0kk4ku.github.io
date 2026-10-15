@@ -49,6 +49,15 @@ export const friendsConfig: FriendLink[] = [
 		weight: 10,
 		enabled: true,
 	},
+	{
+		title: "圆周率的废纸堆",
+		imgurl: "/friends/yuan-zhou-l-de-fei-zhi-dui.png",
+		desc: "圆周率的废纸堆，里面或许有你需要的？",
+		siteurl: "https://piyuanzhoulv.github.io/",
+		tags: ["Blog"],
+		weight: 20,
+		enabled: true,
+	},
 ];
 
 // 获取启用的友链并进行排序
