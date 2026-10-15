@@ -1,5 +1,4 @@
 ---
-import { url } from "@/utils/url-utils";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { Icon } from "astro-icon/components";
@@ -8,6 +7,7 @@ import { siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
+import { url } from "@/utils/url-utils";
 import "@/styles/pages/common.css";
 import "@/styles/pages/media-grid.css";
 import type { VndbUlistEntry } from "@/types/vndb";

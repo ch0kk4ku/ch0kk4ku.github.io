@@ -3,7 +3,9 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      # 个人博客站点，不需要每天收依赖 PR；改成每月一次
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       patch-updates:
         patterns:

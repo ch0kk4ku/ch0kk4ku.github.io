@@ -1,0 +1,8 @@
+fix(ci): 工作流改用 main 分支并整理 import 顺序
+
+- deploy.yml / build.yml / biome.yml 的触发分支由 master 改为 main
+  （原值导致推送后工作流完全不触发，首次部署只能手动 dispatch）
+- biome 自动整理 9 个页面文件的 import 顺序，使 biome ci 通过
+- dependabot 改为每月检查、最多 3 个 PR，减少打扰
+- .tools 增加部署状态核查脚本（check-pages-status / watch-deploy /
+  diagnose-workflows / set-pages-source）
