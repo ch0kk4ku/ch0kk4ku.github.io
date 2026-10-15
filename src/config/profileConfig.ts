@@ -12,7 +12,7 @@ export const profileConfig: ProfileConfig = {
 	name: "ch0kk4ku",
 
 	// 个人签名
-	bio: "这是一个神秘的人。",
+	bio: "你好！我是 ch0kk4ku，或者你也可以叫我 ckk。",
 
 	// 链接配置
 	// 已经预装的图标集：fa7-brands，fa7-regular，fa7-solid，material-symbols，simple-icons
