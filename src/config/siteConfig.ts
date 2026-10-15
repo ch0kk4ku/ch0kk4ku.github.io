@@ -45,10 +45,14 @@ const pages = resolvePageToggles({
 
 export const siteConfig: SiteConfig = {
 	// 站点标题
-	title: "我的博客",
+	// 用于浏览器标签页标题、RSS/Atom、SEO，同时也是导航栏左上角显示的标题
+	title: "Ch0kk4ku's Blog",
 
 	// 站点副标题
-	subtitle: "记录与分享",
+	// 留空：标签页标题只显示「Ch0kk4ku's Blog」，不再拼出「标题 - 副标题」
+	// 注：首页横幅上那句「许多念念不忘…」在 backgroundWallpaper.ts 的 homeText.subtitle，
+	//     与这里无关，改横幅文案请改那边
+	subtitle: "",
 
 	// 站点 URL
 	// 用户站（仓库名 = ch0kk4ku.github.io）发布在根路径，因此不带子目录

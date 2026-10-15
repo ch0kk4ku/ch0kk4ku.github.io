@@ -21,7 +21,9 @@ export async function GET(context: APIContext): Promise<Response> {
 	}));
 	return rss({
 		title: siteConfig.title,
-		description: siteConfig.subtitle || "No description",
+		// 副标题留空时回退到站点描述，避免出现 "No description"
+		description:
+			siteConfig.subtitle || siteConfig.description || "No description",
 		site: context.site ?? "https://firefly.cuteleaf.cn",
 		customData: `<templateTheme>Firefly</templateTheme>
 		<templateThemeVersion>${pkg.version}</templateThemeVersion>
