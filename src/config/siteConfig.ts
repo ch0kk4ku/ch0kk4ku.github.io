@@ -22,7 +22,8 @@ const pages = resolvePageToggles({
 	// 项目展示页开关
 	projects: true,
 	// 相册页面开关
-	gallery: true,
+	// 关闭：模板自带的是示例相册，需要换成自己的照片再开启
+	gallery: false,
 	// 书签导航页面开关
 	booknav: true,
 	// 哔哩哔哩追番页面开关
@@ -37,7 +38,8 @@ const pages = resolvePageToggles({
 	// ── 关于 (About) ──────────────────────────────────
 
 	// 打赏页面开关
-	sponsor: true,
+	// 关闭：模板自带的是主题作者的收款码图片，避免误收款
+	sponsor: false,
 });
 
 export const siteConfig: SiteConfig = {

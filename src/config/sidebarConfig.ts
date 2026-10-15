@@ -58,7 +58,8 @@ export const sidebarLayoutConfig: SidebarLayoutConfig = {
 			// 组件类型：音乐播放器
 			type: "music",
 			// 是否启用该组件
-			enable: true,
+			// 关闭：内置的是主题自带的示例曲目，需要换成自己的歌单再开启
+			enable: false,
 			// 组件位置
 			position: "top",
 			// 是否在文章详情页显示
