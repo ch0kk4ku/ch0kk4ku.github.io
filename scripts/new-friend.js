@@ -8,6 +8,17 @@
  *
  * 它只做一件事：把你填的信息追加进 src/config/friendsConfig.ts 的 friendsConfig 数组，
  * 不需要你手写 TypeScript 对象，也不会碰文件里的其它内容。
+ *
+ * 头像图片（本项目采用「自托管」）：
+ *   博客园、微博、B 站等图床校验 Referer，页面直接引用远程图片会 403。
+ *   所以 --img 给远程 URL 时，脚本会自己把图片取回来存到本地：
+ *
+ *     pnpm friend --title="朋友的博客" --url="https://friend.com" --img="https://friend.com/a.png"
+ *       -> 图片存到 public/friends/朋友的博客.png，配置里写成 /friends/朋友的博客.png
+ *
+ *   可选参数：
+ *     --embed        改成把图片转成 data URI 内嵌进配置（>256 KB 会自动回退为下载）
+ *     --no-download  不做处理，保留原始远程 URL
  */
 import fs from "node:fs";
 import path from "node:path";
