@@ -11,8 +11,8 @@ export const profileConfig: ProfileConfig = {
 	// 名字
 	name: "ch0kk4ku",
 
-	// 个人签名
-	bio: "你好！我是 ch0kk4ku，或者你也可以叫我 ckk。",
+	// 个人签名（显示在侧边栏个人资料卡片里）
+	bio: "有趣有盼，无灾无难。",
 
 	// 链接配置
 	// 已经预装的图标集：fa7-brands，fa7-regular，fa7-solid，material-symbols，simple-icons
