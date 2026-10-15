@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { slugifySegment } from "./lib/slug.js";
 
 const CONFIG_PATH = path.resolve("src/config/friendsConfig.ts");
 const ARRAY_START = "export const friendsConfig: FriendLink[] = [";
@@ -92,6 +93,185 @@ function parseEntries(body) {
 /** 转义成 TypeScript 双引号字符串里的内容（不要叫 escape，那是全局函数） */
 const escapeForTs = (value) =>
 	String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+// ---------------------------------------------------------------------------
+// 头像处理：把远程图片变成不会失效的本地引用
+// ---------------------------------------------------------------------------
+//
+// 背景：cnblogs、微博、B站等图床有防盗链，直接写远程 URL 会加载失败（403）。
+// 处理顺序：
+//   1. 远程 URL 默认 -> 下载到 public/friends/ 并改用站内路径（体积小、可缓存）
+//   2. 加 --embed     -> 转成 data URI 直接写进配置（单文件自包含，适合小图）
+//   3. 加 --no-download -> 保留原始 URL（不做处理）
+// 已经是 / 开头的站内路径或 data: 的，原样保留。
+
+const FRIENDS_PUBLIC_DIR = path.resolve("public/friends");
+const EMBED_SIZE_LIMIT = 256 * 1024; // 超过这个大小就不建议内嵌
+const UA =
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+
+const MIME_BY_EXT = {
+	png: "image/png",
+	jpg: "image/jpeg",
+	jpeg: "image/jpeg",
+	gif: "image/gif",
+	webp: "image/webp",
+	avif: "image/avif",
+	svg: "image/svg+xml",
+	ico: "image/x-icon",
+	bmp: "image/bmp",
+};
+
+const EXT_BY_MIME = {
+	"image/png": "png",
+	"image/jpeg": "jpg",
+	"image/gif": "gif",
+	"image/webp": "webp",
+	"image/avif": "avif",
+	"image/svg+xml": "svg",
+	"image/x-icon": "ico",
+	"image/vnd.microsoft.icon": "ico",
+	"image/bmp": "bmp",
+};
+
+/** 从 URL 或 content-type 推断扩展名 */
+function guessExtension(imageUrl, contentType) {
+	const mime = (contentType ?? "").split(";")[0].trim().toLowerCase();
+	if (EXT_BY_MIME[mime]) return EXT_BY_MIME[mime];
+	try {
+		const ext = path
+			.extname(new URL(imageUrl).pathname)
+			.replace(/^\./, "")
+			.toLowerCase();
+		if (MIME_BY_EXT[ext]) return ext;
+	} catch {
+		// URL 解析失败就继续走默认值
+	}
+	return "png";
+}
+
+function safeFileName(title, ext) {
+	const base = slugifySegment(title) || "friend";
+	return `${base}.${ext}`;
+}
+
+async function downloadImage(imageUrl, fileName) {
+	const res = await fetch(imageUrl, {
+		headers: { "User-Agent": UA, Accept: "image/*,*/*;q=0.8" },
+		redirect: "follow",
+	});
+	if (!res.ok) {
+		throw new Error(
+			`HTTP ${res.status}${res.status === 403 ? "（多半是防盗链）" : ""}`,
+		);
+	}
+	const buffer = Buffer.from(await res.arrayBuffer());
+	if (buffer.length === 0) throw new Error("下载到 0 字节");
+
+	const ext = path.extname(fileName).replace(/^\./, "");
+	let finalName = fileName;
+	// 扩展名不可信时按 content-type 纠正
+	if (!MIME_BY_EXT[ext]) {
+		finalName = `${path.basename(fileName, path.extname(fileName))}.${guessExtension(imageUrl, res.headers.get("content-type"))}`;
+	}
+
+	fs.mkdirSync(FRIENDS_PUBLIC_DIR, { recursive: true });
+	fs.writeFileSync(path.join(FRIENDS_PUBLIC_DIR, finalName), buffer);
+	return { webPath: `/friends/${finalName}`, bytes: buffer.length };
+}
+
+/**
+ * 把用户填的头像字段整理成最终写入配置的值。
+ * - 空值 / data URI / 以 / 开头的站内路径：原样返回
+ * - 其它（普通相对路径）：留空并提示
+ * - 远程 URL：交给 resolveAvatar 下载或内嵌
+ */
+async function prepareAvatar(rawUrl, title) {
+	const value = (rawUrl ?? "").trim();
+
+	if (!value) {
+		console.log("  头像处理：未填写，卡片将显示首字母占位图");
+		return "";
+	}
+	if (value.startsWith("data:") || value.startsWith("/")) {
+		console.log("  头像处理：已是可用的本地形式，原样保留");
+		return value;
+	}
+	if (!/^https?:\/\//i.test(value)) {
+		console.log(
+			"  头像处理：不是完整 URL 也不是以 / 开头的路径，已留空（卡片会显示首字母占位图）",
+		);
+		return "";
+	}
+
+	const { value: resolved, note } = await resolveAvatar(value, title, {
+		embed: flags.has("embed"),
+		noDownload: flags.has("no-download"),
+	});
+	console.log(`  头像处理：${note}`);
+	return resolved;
+}
+
+/**
+ * 处理头像字段：返回可直接写进配置的字符串。
+ * @returns {Promise<{value: string, note: string}>}
+ */
+async function resolveAvatar(rawUrl, title, { embed, noDownload }) {
+	const value = (rawUrl ?? "").trim();
+
+	if (!value) return { value: "", note: "未填写，卡片将显示首字母占位图" };
+	if (value.startsWith("data:"))
+		return { value, note: "已是 data URI，原样保留" };
+	if (value.startsWith("/")) return { value, note: "站内路径，原样保留" };
+	if (noDownload) return { value, note: "--no-download：保留原始远程 URL" };
+
+	let res;
+	try {
+		res = await fetch(value, {
+			headers: { "User-Agent": UA, Accept: "image/*,*/*;q=0.8" },
+			redirect: "follow",
+		});
+	} catch (error) {
+		return { value, note: `下载失败（${error.message}），已保留原始 URL` };
+	}
+
+	if (!res.ok) {
+		return {
+			value,
+			note: `下载失败（HTTP ${res.status}${res.status === 403 ? "，防盗链" : ""}），已保留原始 URL`,
+		};
+	}
+
+	const buffer = Buffer.from(await res.arrayBuffer());
+	const contentType = (res.headers.get("content-type") ?? "")
+		.split(";")[0]
+		.trim()
+		.toLowerCase();
+	const ext = guessExtension(value, contentType);
+	const mime = MIME_BY_EXT[ext] ?? "image/png";
+
+	if (embed) {
+		if (buffer.length > EMBED_SIZE_LIMIT) {
+			const saved = await downloadImage(value, safeFileName(title, ext));
+			return {
+				value: saved.webPath,
+				note: `图片 ${(buffer.length / 1024).toFixed(0)} KB 超过 ${EMBED_SIZE_LIMIT / 1024} KB，未内嵌，已改为下载到 ${saved.webPath}`,
+			};
+		}
+		return {
+			value: `data:${mime};base64,${buffer.toString("base64")}`,
+			note: `已内嵌为 data URI（${(buffer.length / 1024).toFixed(1)} KB）`,
+		};
+	}
+
+	const fileName = safeFileName(title, ext);
+	fs.mkdirSync(FRIENDS_PUBLIC_DIR, { recursive: true });
+	fs.writeFileSync(path.join(FRIENDS_PUBLIC_DIR, fileName), buffer);
+	return {
+		value: `/friends/${fileName}`,
+		note: `已下载到 public/friends/${fileName}（${(buffer.length / 1024).toFixed(1)} KB），配置里改写为站内路径`,
+	};
+}
 
 function renderEntry(entry) {
 	const tags = entry.tags.map((t) => `"${escapeForTs(t)}"`).join(", ");
@@ -254,12 +434,7 @@ if (!/^https?:\/\//i.test(siteurl)) {
 let imgurl = await askOrFlag("img", "头像图片地址（完整 URL 或以 / 开头）", {
 	fallback: "",
 });
-if (imgurl && !/^(https?:\/\/|\/)/i.test(imgurl)) {
-	console.log(
-		"  头像地址不是完整 URL 也不是以 / 开头的路径，已留空（卡片会显示首字母占位图）。",
-	);
-	imgurl = "";
-}
+imgurl = await prepareAvatar(imgurl, title);
 const desc = await askOrFlag("desc", "一句话描述", { fallback: "" });
 const tagsRaw = await askOrFlag("tags", "分类标签，逗号分隔", {
 	fallback: "Blog",

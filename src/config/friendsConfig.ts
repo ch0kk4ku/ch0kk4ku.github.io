@@ -42,7 +42,7 @@ export const friendsPageConfig: FriendsPageConfig = {
 export const friendsConfig: FriendLink[] = [
 	{
 		title: "Ch0kk4ku's CNBlog",
-		imgurl: "https://pic.cnblogs.com/avatar/3470310/20240621112849.png",
+		imgurl: "/friends/ch0kk4ku-s-cnblog.png",
 		desc: "我的旧博客",
 		siteurl: "https://www.cnblogs.com/ch0kk4ku",
 		tags: ["Blog"],
