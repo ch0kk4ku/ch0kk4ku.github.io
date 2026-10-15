@@ -25,7 +25,8 @@ const pages = resolvePageToggles({
 	// 关闭：模板自带的是示例相册，需要换成自己的照片再开启
 	gallery: false,
 	// 书签导航页面开关
-	booknav: true,
+	// 关闭：个人博客用不到书签导航功能
+	booknav: false,
 	// 哔哩哔哩追番页面开关
 	bilibili: false,
 	// 番组计划页面开关
