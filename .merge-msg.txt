@@ -1,0 +1,8 @@
+Merge remote-tracking branch 'origin/main' into main
+
+远端有一个独立提交（e764efd 添加 Dalang 的友链），与本地重复。
+合并时作如下处理：
+- Dalang 条目保留本地版本（描述句末带句号），远端版本除句号外完全一致，
+  图片文件哈希也相同（56239d01）
+- 保留本地独有的 yuanmuyan 条目
+- 最终 friendsConfig 为 4 条：CNBlog / 圆周率的废纸堆 / Dalang / yuanmuyan
