@@ -60,11 +60,11 @@ export const siteConfig: SiteConfig = {
 
 	// 站点描述
 	// ⚠️ 占位符：替换成一句话介绍你的站点
-	description: "ch0kk4ku 的个人博客，记录技术笔记、折腾过程与零散想法。",
+	description: "Ch0kk4ku 的个人博客，记录技术笔记、折腾过程与零散想法。",
 
 	// 站点关键词
 	// ⚠️ 占位符：替换成你自己的站点关键词
-	keywords: ["ch0kk4ku", "博客", "技术笔记", "Astro", "Firefly"],
+	keywords: ["Ch0kk4ku", "博客", "技术笔记", "Astro", "Firefly"],
 
 	// 主题色
 	themeColor: {
