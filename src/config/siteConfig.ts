@@ -18,9 +18,9 @@ const pages = resolvePageToggles({
 	// ── 我的 (My) ──────────────────────────────────
 
 	// 动态页面开关
-	dynamic: true,
+	dynamic: false,
 	// 项目展示页开关
-	projects: true,
+	projects: false,
 	// 相册页面开关
 	// 关闭：模板自带的是示例相册，需要换成自己的照片再开启
 	gallery: false,
@@ -55,12 +55,11 @@ export const siteConfig: SiteConfig = {
 
 	// 站点描述
 	// ⚠️ 占位符：替换成一句话介绍你的站点
-	description:
-		"基于 Astro 与 Firefly 主题搭建的个人博客，用来记录技术笔记、阅读与生活。",
+	description: "ch0kk4ku 的个人博客，记录技术笔记、折腾过程与零散想法。",
 
 	// 站点关键词
 	// ⚠️ 占位符：替换成你自己的站点关键词
-	keywords: ["博客", "技术笔记", "Astro", "Firefly", "静态博客"],
+	keywords: ["ch0kk4ku", "博客", "技术笔记", "Astro", "Firefly"],
 
 	// 主题色
 	themeColor: {

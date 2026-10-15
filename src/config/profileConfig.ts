@@ -9,12 +9,10 @@ export const profileConfig: ProfileConfig = {
 	avatar: "assets/images/avatar.avif",
 
 	// 名字
-	// ⚠️ 占位符：改成你的昵称
-	name: "博主",
+	name: "ch0kk4ku",
 
 	// 个人签名
-	// ⚠️ 占位符：改成你的一句话签名
-	bio: "记录，然后分享。",
+	bio: "这是一个神秘的人。",
 
 	// 链接配置
 	// 已经预装的图标集：fa7-brands，fa7-regular，fa7-solid，material-symbols，simple-icons
@@ -26,15 +24,13 @@ export const profileConfig: ProfileConfig = {
 		{
 			name: "GitHub",
 			icon: "fa7-brands:github",
-			// ⚠️ 占位符：改成你的 GitHub 主页
-			url: "https://github.com/",
+			url: "https://github.com/ch0kk4ku",
 			showName: false,
 		},
 		{
 			name: "Email",
 			icon: "fa7-solid:envelope",
-			// ⚠️ 占位符：改成你的邮箱
-			url: "mailto:you@example.com",
+			url: "mailto:yinhedream@163.com",
 			showName: false,
 		},
 		{
