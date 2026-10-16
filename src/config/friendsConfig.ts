@@ -61,7 +61,7 @@ export const friendsConfig: FriendLink[] = [
 	{
 		title: "Dalang",
 		imgurl: "/friends/dalang.webp",
-		desc: "不定时更新一些半夜发疯想的东西和一些记录等等。",
+		desc: "一些半夜发疯想的东西和一些记录等等。",
 		siteurl: "https://xiaolang0817.github.io/personal_blog/",
 		tags: ["Blog"],
 		weight: 12,
