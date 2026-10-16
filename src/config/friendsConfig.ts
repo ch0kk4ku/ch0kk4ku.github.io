@@ -103,6 +103,15 @@ export const friendsConfig: FriendLink[] = [
 		weight: 12,
 		enabled: true,
 	},
+	{
+		title: "kur0sia!",
+		imgurl: "/friends/kur0sia.jpg",
+		desc: "Ciallo～(∠・ω< )⌒★",
+		siteurl: "https://aclosure.github.io/links/",
+		tags: ["Blog"],
+		weight: 12,
+		enabled: true,
+	},
 ];
 
 // 获取启用的友链并进行排序
