@@ -25,6 +25,7 @@
     "friend:list": "node scripts/new-friend.js list",
     "friend:edit": "node scripts/new-friend.js edit",
     "friend:remove": "node scripts/new-friend.js remove",
+    "artists": "node scripts/fetch-artists.mjs",
     "cfg": "node scripts/cfg.js",
     "open": "node scripts/cfg.js",
     "format": "biome format --write ./src ./scripts",

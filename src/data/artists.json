@@ -1,0 +1,107 @@
+[
+	{
+		"key": "xu-song",
+		"name": "许嵩",
+		"alias": "Vae",
+		"photo": "/artists/xu-song.webp",
+		"artistId": 5771,
+		"albumCount": 58,
+		"songCount": 233,
+		"picks": [
+			"天龙八部之宿敌",
+			"幻听",
+			"素颜",
+			"多余的解释"
+		]
+	},
+	{
+		"key": "zhang-yu-sheng",
+		"name": "张雨生",
+		"alias": "Tom Chang",
+		"photo": "/artists/zhang-yu-sheng.webp",
+		"artistId": 6459,
+		"albumCount": 21,
+		"songCount": 467,
+		"picks": [
+			"大海",
+			"我的未来不是梦",
+			"口是心非",
+			"永远不回头"
+		]
+	},
+	{
+		"key": "fang-da-tong",
+		"name": "方大同",
+		"alias": "Khalil Fong",
+		"photo": "/artists/fang-da-tong.webp",
+		"artistId": 2738,
+		"albumCount": 48,
+		"songCount": 470,
+		"picks": [
+			"特别的人",
+			"麦恩莉",
+			"Love Song",
+			"才二十三"
+		]
+	},
+	{
+		"key": "zhou-chuan-xiong",
+		"name": "周传雄",
+		"alias": "小刚",
+		"photo": "/artists/zhou-chuan-xiong.webp",
+		"artistId": 6652,
+		"albumCount": 51,
+		"songCount": 517,
+		"picks": [
+			"青花",
+			"黄昏",
+			"冬天的秘密",
+			"寂寞沙洲冷"
+		]
+	},
+	{
+		"key": "dazbee",
+		"name": "DAZBEE",
+		"alias": "ダズビー",
+		"photo": "/artists/dazbee.webp",
+		"artistId": 29896257,
+		"albumCount": 39,
+		"songCount": 148,
+		"picks": [
+			"酸橙色信笺",
+			"アディオス",
+			"シュガーコート",
+			"青揺れるフィリア"
+		]
+	},
+	{
+		"key": "sana",
+		"name": "鎖那",
+		"alias": "さな",
+		"photo": "/artists/sana.webp",
+		"artistId": 1002089,
+		"albumCount": 21,
+		"songCount": 153,
+		"picks": [
+			"彼女は旅に出る",
+			"可愛くなりたい (feat. 鎖那)",
+			"ひとり旅 (feat. 鎖那)",
+			"KISSIN' CLAW (AIRY STEPS)"
+		]
+	},
+	{
+		"key": "kano",
+		"name": "鹿乃",
+		"alias": "かの",
+		"photo": "/artists/kano.webp",
+		"artistId": 17014,
+		"albumCount": 46,
+		"songCount": 405,
+		"picks": [
+			"Memories of Kindness",
+			"心做し",
+			"吉祥话",
+			"この世界を愛したい"
+		]
+	}
+]
