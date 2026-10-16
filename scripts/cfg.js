@@ -8,6 +8,7 @@
  *   pnpm cfg all                 打开全部可编辑配置（含内容文件）
  *   pnpm cfg content             打开日常内容：文章目录 + 关于我 + 留言板 + 友链页
  *   pnpm cfg folder              直接打开整个 src/config 目录
+ *   pnpm cfg check               自查所有映射的文件/目录是否存在（改名后用它排查）
  *   pnpm cfg 公告 --editor=notepad   指定编辑器（默认自动探测 code → notepad）
  *
  * 两种写法等价：pnpm cfg all 与 pnpm cfg --all
@@ -92,8 +93,8 @@ const TARGETS = [
 		group: "日常内容",
 		hot: true,
 		label: "关于我",
-		file: "src/content/spec/about.md",
-		desc: "关于页正文（Markdown，可直接写）",
+		file: "src/content/spec/about.mdx",
+		desc: "关于页正文（MDX，可直接写；内嵌了常听音乐人长廊组件）",
 	},
 	{
 		key: "guestbook",
@@ -285,13 +286,43 @@ for (const a of argv) {
 }
 
 // all / folder / content 既可以写成 --all，也可以直接写成子命令词（pnpm cfg all）
-const MODE_WORDS = ["all", "folder", "content"];
+const MODE_WORDS = ["all", "folder", "content", "check"];
 const showAll = flags.has("all") || keywords.includes("all");
 const showFolder = flags.has("folder") || keywords.includes("folder");
 const showContent = flags.has("content") || keywords.includes("content");
+const showCheck = flags.has("check") || keywords.includes("check");
 const explicitEditor = flags.get("editor");
 // 模式词不参与关键词匹配
 const searchKeywords = keywords.filter((k) => !MODE_WORDS.includes(k));
+
+// --check：自查所有映射的文件/目录是否真的存在（改名或移动后用它排查）
+if (showCheck) {
+	let bad = 0;
+	for (const t of TARGETS) {
+		const p = t.file ?? t.dir;
+		if (fs.existsSync(path.resolve(REPO_ROOT, p))) continue;
+		bad += 1;
+		console.log(`  ✘ ${t.label}（${t.key}）→ ${p}`);
+		const dir = path.dirname(path.resolve(REPO_ROOT, p));
+		const stem = path.basename(p, path.extname(p));
+		const candidates = fs.existsSync(dir)
+			? fs
+					.readdirSync(dir)
+					.filter((f) => f.startsWith(stem) && f !== path.basename(p))
+			: [];
+		if (candidates.length > 0) {
+			console.log(
+				`      可能是：${candidates.map((c) => path.join(path.dirname(p), c)).join("、")}`,
+			);
+		}
+	}
+	console.log(
+		bad === 0
+			? `\n✔ 全部 ${TARGETS.length} 个映射均有效`
+			: `\n共 ${TARGETS.length} 个映射，其中 ${bad} 个已失效——请更新 scripts/cfg.js 里的路径`,
+	);
+	process.exit(bad === 0 ? 0 : 1);
+}
 
 const pad = (s, n) => {
 	// 中文按 2 格宽度估算，保证表格对齐
@@ -369,7 +400,7 @@ if (showContent) {
 		"code";
 	const paths = [
 		"src/content/posts",
-		"src/content/spec/about.md",
+		"src/content/spec/about.mdx",
 		"src/content/spec/guestbook.md",
 		"src/content/spec/friends.mdx",
 	];
@@ -389,6 +420,7 @@ if (searchKeywords.length === 0 && !showAll && !showFolder && !showContent) {
 		"        pnpm cfg content        打开日常内容（文章/关于我/留言板/友链页）",
 	);
 	console.log("        pnpm cfg folder         打开整个 src/config 目录");
+	console.log("        pnpm cfg check          自查映射的文件是否都存在");
 	printTable(TARGETS);
 	const hot = TARGETS.filter((t) => t.hot);
 	console.log(
@@ -408,13 +440,29 @@ if (selected.length === 0) {
 	process.exit(1);
 }
 
-// 目标路径（文件不存在时给出提示）
+// 目标路径（文件不存在时给出提示，并尝试找同名文件，避免改名后映射失效时无从下手）
 const paths = [];
 for (const t of selected) {
 	const p = t.file ?? t.dir;
 	const abs = path.resolve(REPO_ROOT, p);
 	if (!fs.existsSync(abs)) {
 		console.warn(`⚠ 不存在，已跳过：${p}`);
+		// 同目录下有没有同名的其它文件？（例如 .md 被改名成 .mdx）
+		const dir = path.dirname(abs);
+		const stem = path.basename(abs, path.extname(abs));
+		const candidates = fs.existsSync(dir)
+			? fs
+					.readdirSync(dir)
+					.filter((f) => f.startsWith(stem) && f !== path.basename(abs))
+			: [];
+		if (candidates.length > 0) {
+			console.warn(
+				`   可能是改成了：${candidates.map((c) => path.join(path.dirname(p), c)).join("、")}`,
+			);
+			console.warn(
+				"   （请更新 scripts/cfg.js 里的映射，或用 `pnpm cfg --check` 自查全部映射）",
+			);
+		}
 		continue;
 	}
 	paths.push(p);
