@@ -93,6 +93,8 @@ export const friendsConfig: FriendLink[] = [
 		tags: ["Blog"],
 		weight: 13,
 		enabled: true,
+		// 该头像本身是圆形裁切（四角透明），用圆形边框避免方形圆角露出四角
+		shape: "circle",
 	},
 	{
 		title: "Map1e-Suk1",

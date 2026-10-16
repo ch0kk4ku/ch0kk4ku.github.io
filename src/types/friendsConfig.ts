@@ -7,6 +7,10 @@ export type FriendLink = {
 	tags?: string[]; // 标签数组
 	weight: number; // 权重，数字越大排序越靠前
 	enabled: boolean; // 是否启用
+	// 头像边框形状：
+	//   "circle" = 完全圆形（用于本身是圆形裁切、四角透明的头像，避免方形圆角框露出四角）
+	//   "square" 或缺省 = 方形圆角（默认）
+	shape?: "circle" | "square";
 };
 
 export type FriendsPageConfig = {

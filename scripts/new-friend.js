@@ -38,7 +38,10 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { slugifySegment } from "./lib/slug.js";
 
-const CONFIG_PATH = path.resolve("src/config/friendsConfig.ts");
+// 配置文件路径可用环境变量覆盖（测试用：在仓库内用临时副本验证而不动真实配置）
+const CONFIG_PATH = process.env.FRIEND_CONFIG_PATH
+	? path.resolve(process.env.FRIEND_CONFIG_PATH)
+	: path.resolve("src/config/friendsConfig.ts");
 const REPO_ROOT = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"..",
@@ -404,6 +407,8 @@ function renderEntry(entry) {
 		`\t\ttags: [${tags}],`,
 		`\t\tweight: ${entry.weight},`,
 		`\t\tenabled: ${entry.enabled === false ? "false" : "true"},`,
+		// 仅当显式配置了圆形时才写入，保持默认条目的简洁
+		...(entry.shape === "circle" ? ['\t\tshape: "circle",'] : []),
 		"\t},",
 	].join("\n");
 }
@@ -435,6 +440,8 @@ function entryBlockAt(text, index) {
 				.filter(Boolean),
 			weight: Number.parseInt(raw.match(/weight:\s*(-?\d+)/)?.[1] ?? "10", 10),
 			enabled: !/enabled:\s*false/.test(raw),
+			// 头像边框形状：circle = 完全圆形，未配置则为方形圆角
+			shape: /shape:\s*"circle"/.test(raw) ? "circle" : "square",
 		},
 	};
 }
@@ -650,6 +657,8 @@ if (mode === "edit") {
 			10,
 		),
 		enabled: before.enabled,
+		// 形状默认保持原值，之后按 --shape / --shape= 或交互确认覆盖
+		shape: before.shape,
 	};
 
 	if (!/^https?:\/\//i.test(next.siteurl)) {
@@ -699,6 +708,29 @@ if (mode === "edit") {
 		if (/^y(es)?$/i.test(answer)) next.enabled = true;
 	}
 
+	// 头像边框形状：--shape=circle / --shape=square 显式指定；否则交互确认
+	if (flags.has("shape")) {
+		const v = String(flags.get("shape")).toLowerCase();
+		if (!["circle", "square"].includes(v)) {
+			console.error("--shape 只能是 circle 或 square。");
+			rl?.close();
+			process.exit(1);
+		}
+		next.shape = v;
+	} else if (flags.has("circle")) {
+		next.shape = "circle";
+	} else if (flags.has("square")) {
+		next.shape = "square";
+	} else if (!nonInteractive) {
+		const answer = (
+			await rl.question(
+				`头像边框（回车保持「${before.shape === "circle" ? "圆形" : "方形圆角"}」，输入 c 圆形 / s 方形）: `,
+			)
+		).trim();
+		if (/^c(ircle)?$/i.test(answer)) next.shape = "circle";
+		if (/^s(quare)?$/i.test(answer)) next.shape = "square";
+	}
+
 	// 改了标题且头像在 public/friends/<旧名> 下时，顺带把文件改名，避免文件名与站点名脱节
 	if (next.title !== before.title && before.imgurl.startsWith("/friends/")) {
 		const oldPath = path.join("public", before.imgurl);
@@ -734,6 +766,11 @@ if (mode === "edit") {
 		["标签", before.tags.join(","), next.tags.join(",")],
 		["权重", String(before.weight), String(next.weight)],
 		["启用", before.enabled ? "是" : "否", next.enabled ? "是" : "否"],
+		[
+			"头像边框",
+			before.shape === "circle" ? "圆形" : "方形圆角",
+			next.shape === "circle" ? "圆形" : "方形圆角",
+		],
 	];
 	let changed = 0;
 	for (const [label, from, to] of rows) {
@@ -787,6 +824,21 @@ if (!Number.isInteger(weight)) {
 	process.exit(1);
 }
 
+// 头像边框形状：--shape=circle|square 显式指定，--circle / --square 作为简写
+const shapeFlag = flags.has("shape")
+	? String(flags.get("shape")).toLowerCase()
+	: flags.has("circle")
+		? "circle"
+		: flags.has("square")
+			? "square"
+			: "square";
+if (!["circle", "square"].includes(shapeFlag)) {
+	console.error("--shape 只能是 circle 或 square。");
+	rl?.close();
+	process.exit(1);
+}
+const entryShape = shapeFlag;
+
 const entry = {
 	title,
 	imgurl,
@@ -797,6 +849,7 @@ const entry = {
 		.map((t) => t.trim())
 		.filter(Boolean),
 	weight,
+	shape: entryShape,
 };
 
 const before = parseEntries(
