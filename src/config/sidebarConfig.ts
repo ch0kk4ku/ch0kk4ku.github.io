@@ -48,7 +48,9 @@ export const sidebarLayoutConfig: SidebarLayoutConfig = {
 			// 组件类型：公告组件
 			type: "announcement",
 			// 是否启用该组件
-			enable: true,
+			// 关闭：暂无公告要发（announcementConfig.ts 的配置保留，
+			// 以后想发公告把这里改回 true 并填好 content 即可）
+			enable: false,
 			// 组件位置
 			position: "top",
 			// 是否在文章详情页显示
@@ -250,7 +252,8 @@ export const sidebarLayoutConfig: SidebarLayoutConfig = {
 			// 组件类型：公告组件
 			type: "announcement",
 			// 是否启用该组件
-			enable: true,
+			// 关闭（与左侧栏保持一致）：配置保留在 announcementConfig.ts
+			enable: false,
 			// 是否在文章详情页显示
 			showOnPostPage: true,
 		},
