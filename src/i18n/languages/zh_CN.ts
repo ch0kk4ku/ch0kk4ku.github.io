@@ -4,7 +4,10 @@ import type { Translation } from "../translation";
 export const zh_CN: Translation = {
 	[Key.home]: "主页",
 	[Key.about]: "关于我",
-	[Key.archive]: "归档",
+	// 原主题翻译为「归档」。中文语境下「归档」容易让人联想到「已收起来/停止维护」
+	// （Gmail 归档、GitHub Archive 都是这个意味），故选「全部文章」避免歧义。
+	// 这一处同时影响：首页/归档页顶部胶囊条、归档页标题、导航栏「文章」下拉项、llms.txt
+	[Key.archive]: "全部文章",
 	[Key.search]: "搜索",
 	[Key.searchNoResults]: "找不到相关结果。",
 	[Key.searchTypeSomething]: "请输入搜索关键词。",
