@@ -1,12 +1,19 @@
 # 关于我
 
-你好！我是 **Ch0kk4ku** ，或者你也可以叫我 **ckk** 。
+你好！我是 **Ch0kk4ku** ，或者你也可以叫我 **ckk** 。目前是一个小小的 web 萌新，对 misc/re/pwn 也有些兴趣。
 
 ---
 
 ## 关于本站
 
-用 [Astro](https://astro.build/) 和 [Firefly](https://github.com/CuteLeaf/Firefly) 主题搭建的静态博客，
-托管在 GitHub Pages 上。
+用 [Astro](https://astro.build/) 和 [Firefly](https://github.com/CuteLeaf/Firefly) 主题搭建的静态博客，托管在 GitHub Pages 上。
 
-写点什么，随缘更新。
+记录 CTF 的学习之路，写点奇奇怪怪的，研究点好玩的。
+
+## 一些碎碎念
+
+如果只是想要看些技术向的内容，可以去访问我的 [旧博客](https://www.cnblogs.com/ch0kk4ku) ，在那里我会仅发布本站的技术向博客。
+
+同时也可以...看看我的 [友链](https://ch0kk4ku.github.io/friends/) ？那里有 BUPT 的朋友们兼厉害的师傅们，或许在那里你能有所收获。
+
+与各位师傅一起共勉 ヾ(≧▽≦*)o
