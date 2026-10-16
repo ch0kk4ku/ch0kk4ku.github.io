@@ -9,24 +9,27 @@
  * - 数据来自 src/data/artists.json（由 `pnpm artists` 生成，picks 可手工编辑）
  */
 import { Icon } from "astro-icon/components";
-import artistsData from "@/data/artists.json";
+import { artistGalleryConfig } from "@/config/artistGalleryConfig";
 import type { ArtistEntry } from "@/types/artists";
 
 interface Props {
-	/** 分组标题，传空字符串则不显示标题行 */
+	/** 分组标题，默认取配置 */
 	title?: string;
-	/** 标题右侧的提示文字 */
+	/** 标题右侧的提示文字，默认取配置 */
 	note?: string;
 	class?: string;
 }
 
 const {
-	title = "常听音乐人",
-	note = "轻点卡片翻面，看看我常听什么",
+	title = artistGalleryConfig.title ?? "常听音乐人",
+	note = artistGalleryConfig.note ?? "",
 	class: className,
 } = Astro.props;
 
-const artists = artistsData as ArtistEntry[];
+// 关闭时完全不渲染（组件与数据保留，改配置即可恢复）
+if (!artistGalleryConfig.enable) return;
+
+const artists = (artistGalleryConfig.data ?? []) as ArtistEntry[];
 
 /** 取名字首字做水印装饰（英文名取首字母大写） */
 const watermarkOf = (name: string) => [...name][0]?.toUpperCase() ?? "♪";
