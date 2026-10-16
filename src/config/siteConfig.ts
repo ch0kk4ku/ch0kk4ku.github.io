@@ -13,7 +13,9 @@ const pages = resolvePageToggles({
 	// 友链页面开关
 	friends: true,
 	// 留言板页面开关，需要配置评论系统
-	guestbook: true,
+	// 关闭：本站未启用评论系统，留言板没有实际用途
+	// 注：关闭后「社交」下拉里只剩友链，导航会自动把友链提升为一级菜单
+	guestbook: false,
 
 	// ── 我的 (My) ──────────────────────────────────
 
