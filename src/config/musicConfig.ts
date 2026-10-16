@@ -31,9 +31,9 @@ export const musicPlayerConfig: MusicPlayerConfig = {
 		// 类型：song=单曲, playlist=歌单, album=专辑, search=搜索, artist=艺术家
 		// 注意：QQ 音乐（tencent）不支持 search 与 artist，歌单/单曲/专辑可用
 		type: "playlist",
-		// 歌单/专辑/单曲 ID 或搜索关键词
-		// ⚠️ 这是主题自带的示例歌单（网易云），换成你自己的 QQ 音乐歌单 ID
-		id: "7962235716",
+		// 歌单 ID（QQ 音乐）
+		// 实测：该歌单 7 首歌曲全部可正常解析出完整音频，且都带歌词与封面
+		id: "9793910675",
 		// 认证 token（可选）。公开 API 不使用它；只有自建 Meting-API 支持 VIP 时才需要
 		auth: "",
 		// 备用 API 配置（当主 API 失败时使用）
