@@ -61,7 +61,7 @@ export const friendsConfig: FriendLink[] = [
 	{
 		title: "Dalang",
 		imgurl: "/friends/dalang.webp",
-		desc: "本网页是写着玩的,不定时更新,里面可能会有我半夜发疯想的东西和一些记录啥啥啥的。",
+		desc: "不定时更新一些半夜发疯想的东西和一些记录等等。",
 		siteurl: "https://xiaolang0817.github.io/personal_blog/",
 		tags: ["Blog"],
 		weight: 12,
@@ -95,8 +95,8 @@ export const friendsConfig: FriendLink[] = [
 		enabled: true,
 	},
 	{
-		title: "Map1e-Suk1的秘密基地",
-		imgurl: "/friends/map1e-suk1-de-mi-mi-ji-di.webp",
+		title: "Map1e-Suk1",
+		imgurl: "/friends/map1e-suk1.webp",
 		desc: "Roam free, for life is wide.",
 		siteurl: "https://map1e-suk1.github.io/",
 		tags: ["Blog"],
