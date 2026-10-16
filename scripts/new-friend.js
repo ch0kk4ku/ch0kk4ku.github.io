@@ -4,7 +4,14 @@
  * 用法：
  *   pnpm friend            交互式添加一条友链
  *   pnpm friend:list       列出当前所有友链
+ *   pnpm friend:edit       交互式编辑某条友链（回车 = 保持原值）
  *   pnpm friend:remove     交互式移除一条友链
+ *
+ * 编辑也可以用纯参数（不会发问，只改显式给出的字段）：
+ *   pnpm friend:edit --index=2 --title="新名字" --url="https://new.example"
+ *   pnpm friend:edit --index=2 --img="D:\pics\new.png"   # 换头像，自动裁方自托管
+ *   pnpm friend:edit --index=2 --remove-image            # 清空头像
+ *   pnpm friend:edit --index=2 --disable                 # 停用（卡片不再显示）
  *
  * 它只做一件事：把你填的信息追加进 src/config/friendsConfig.ts 的 friendsConfig 数组，
  * 不需要你手写 TypeScript 对象，也不会碰文件里的其它内容。
@@ -396,9 +403,50 @@ function renderEntry(entry) {
 		`\t\tsiteurl: "${escapeForTs(entry.siteurl)}",`,
 		`\t\ttags: [${tags}],`,
 		`\t\tweight: ${entry.weight},`,
-		"\t\tenabled: true,",
+		`\t\tenabled: ${entry.enabled === false ? "false" : "true"},`,
 		"\t},",
 	].join("\n");
+}
+
+/** 取出 friendsConfig 数组里第 index 个条目的文本区间与其字段 */
+function entryBlockAt(text, index) {
+	const { bodyStart, bodyEnd } = arrayBounds(text);
+	const body = text.slice(bodyStart, bodyEnd);
+	const blocks = [...body.matchAll(/\n?\t\{[\s\S]*?\n\t\},?/g)];
+	if (index < 0 || index >= blocks.length) return null;
+	const raw = blocks[index][0];
+	const field = (name, fallback = "") =>
+		raw.match(new RegExp(`${name}:\\s*"((?:[^"\\\\]|\\\\.)*)"`))?.[1] ??
+		fallback;
+	const unescapeTs = (v) => v.replace(/\\(.)/g, "$1");
+	return {
+		raw,
+		bodyStart,
+		start: bodyStart + blocks[index].index,
+		end: bodyStart + blocks[index].index + raw.length,
+		entry: {
+			title: unescapeTs(field("title")),
+			imgurl: unescapeTs(field("imgurl")),
+			desc: unescapeTs(field("desc")),
+			siteurl: unescapeTs(field("siteurl")),
+			tags: (raw.match(/tags:\s*\[([^\]]*)\]/)?.[1] ?? "")
+				.split(",")
+				.map((t) => unescapeTs(t.trim().replace(/^"|"$/g, "")))
+				.filter(Boolean),
+			weight: Number.parseInt(raw.match(/weight:\s*(-?\d+)/)?.[1] ?? "10", 10),
+			enabled: !/enabled:\s*false/.test(raw),
+		},
+	};
+}
+
+/** 用新条目替换第 index 个条目，保留条目前后的空白结构 */
+function replaceEntryAt(text, index, entry) {
+	const found = entryBlockAt(text, index);
+	if (!found) return null;
+	// 原块可能以换行开头（保留那个换行），以 "\t}," 结尾
+	const prefix = found.raw.startsWith("\n") ? "\n" : "";
+	const replacement = prefix + renderEntry(entry).replace(/\n$/, "");
+	return text.slice(0, found.start) + replacement + text.slice(found.end);
 }
 
 function appendEntry(text, entry) {
@@ -458,20 +506,18 @@ const entries = parseEntries(
 	text.slice(arrayBounds(text).bodyStart, arrayBounds(text).bodyEnd),
 );
 
-if (mode === "list") {
-	if (entries.length === 0) {
-		console.log("当前没有任何友链。用 `pnpm friend` 添加。");
-	} else {
-		console.log(`共 ${entries.length} 条友链：`);
-		entries.forEach((title, i) => {
-			console.log(`  ${i + 1}. ${title}`);
-		});
-	}
-	process.exit(0);
-}
-
-/** 非交互模式：--title 与 --url 都给齐时直接写入，适合脚本化调用 */
-const nonInteractive = flags.has("title") && flags.has("url");
+// 是否进入交互式问答。各子命令的判定不同：
+//   add    —— 命令行给全 --title 与 --url 才算非交互（这两个是必填项）
+//   edit   —— 只要命令行带了任何「会改内容」的参数就直接改、不发问；
+//             只有 --index（或什么都不给）时进交互问答逐项确认
+//   remove —— 只认 --index / 交互输入序号
+const interactiveFlag = flags.has("interactive");
+// 这些是流程控制参数，出现它们不代表用户想改字段
+const NON_CONTENT_FLAGS = new Set(["index", "interactive", "dry-run"]);
+const hasEditArgs = [...flags.keys()].some((k) => !NON_CONTENT_FLAGS.has(k));
+const nonInteractive =
+	!interactiveFlag &&
+	(mode === "edit" ? hasEditArgs : flags.has("title") && flags.has("url"));
 
 const rl = nonInteractive ? null : createInterface({ input, output });
 const ask = async (question, { required = false, fallback = "" } = {}) => {
@@ -494,6 +540,18 @@ const askOrFlag = async (flagName, question, options = {}) => {
 	if (nonInteractive) return options.fallback ?? "";
 	return ask(question, options);
 };
+
+if (mode === "list") {
+	if (entries.length === 0) {
+		console.log("当前没有任何友链。用 `pnpm friend` 添加。");
+	} else {
+		console.log(`共 ${entries.length} 条友链：`);
+		entries.forEach((title, i) => {
+			console.log(`  ${i + 1}. ${title}`);
+		});
+	}
+	process.exit(0);
+}
 
 if (mode === "remove") {
 	if (entries.length === 0) {
@@ -526,6 +584,168 @@ if (mode === "remove") {
 	}
 	fs.writeFileSync(CONFIG_PATH, next);
 	console.log(`已移除「${entries[picked - 1]}」。`);
+	rl?.close();
+	process.exit(0);
+}
+
+// ---- 编辑 ----
+if (mode === "edit") {
+	if (entries.length === 0) {
+		console.log("当前没有任何友链，请先用 `pnpm friend` 添加。");
+		rl?.close();
+		process.exit(0);
+	}
+
+	entries.forEach((title, i) => {
+		console.log(`  ${i + 1}. ${title}`);
+	});
+
+	const indexFlag = flags.get("index");
+	const picked = Number.parseInt(
+		indexFlag ?? (await ask("要编辑第几条", { required: true })),
+		10,
+	);
+	if (!Number.isInteger(picked) || picked < 1 || picked > entries.length) {
+		console.error("序号无效。");
+		rl?.close();
+		process.exit(1);
+	}
+
+	const found = entryBlockAt(text, picked - 1);
+	if (!found) {
+		console.error("读取该条目失败。");
+		rl?.close();
+		process.exit(1);
+	}
+	const before = found.entry;
+	console.log(`\n编辑「${before.title}」（直接回车 = 保持原值）\n`);
+
+	// 交互模式下以当前值作为默认值；非交互模式只改命令行显式给出的字段
+	const editField = async (flagName, question, current) => {
+		if (flags.has(flagName)) return flags.get(flagName);
+		if (nonInteractive) return current;
+		const answer = (
+			await rl.question(`${question}（回车保持「${current}」）: `)
+		).trim();
+		return answer === "" ? current : answer;
+	};
+
+	const next = {
+		title: await editField("title", "站点名", before.title),
+		siteurl: await editField("url", "站点地址", before.siteurl),
+		imgurl: before.imgurl,
+		desc: await editField("desc", "一句话描述", before.desc),
+		tags: (
+			await editField("tags", "分类标签（逗号分隔）", before.tags.join(","))
+		)
+			.split(/[,，]/)
+			.map((t) => t.trim())
+			.filter(Boolean),
+		weight: Number.parseInt(
+			await editField(
+				"weight",
+				"权重（数字越大越靠前）",
+				String(before.weight),
+			),
+			10,
+		),
+		enabled: before.enabled,
+	};
+
+	if (!/^https?:\/\//i.test(next.siteurl)) {
+		console.error("站点地址必须以 http:// 或 https:// 开头。");
+		rl?.close();
+		process.exit(1);
+	}
+	if (!Number.isInteger(next.weight)) {
+		console.error("权重必须是整数。");
+		rl?.close();
+		process.exit(1);
+	}
+
+	// 头像：给了 --img 就重新处理（本地文件/远程 URL 都会裁方自托管）；
+	// --remove-image 清空；否则保持原值
+	if (flags.has("remove-image")) {
+		next.imgurl = "";
+		console.log("  头像处理：已按要求清空（卡片显示首字母占位图）");
+	} else if (flags.has("img")) {
+		next.imgurl = await prepareAvatar(flags.get("img"), next.title);
+	} else if (nonInteractive) {
+		console.log(`  头像保持原值：${before.imgurl || "（空）"}`);
+	} else {
+		const answer = (
+			await rl.question(
+				`头像（回车保持「${before.imgurl || "空"}」，输入 removed 清空）: `,
+			)
+		).trim();
+		if (answer === "removed" || answer === "清空") {
+			next.imgurl = "";
+			console.log("  头像处理：已清空");
+		} else if (answer) {
+			next.imgurl = await prepareAvatar(answer, next.title);
+		}
+	}
+
+	// enabled 开关
+	if (flags.has("disable")) next.enabled = false;
+	else if (flags.has("enable")) next.enabled = true;
+	else if (!nonInteractive) {
+		const answer = (
+			await rl.question(
+				`是否启用（回车保持「${before.enabled ? "启用" : "停用"}」，输入 n 停用 / y 启用）: `,
+			)
+		).trim();
+		if (/^n(o)?$/i.test(answer)) next.enabled = false;
+		if (/^y(es)?$/i.test(answer)) next.enabled = true;
+	}
+
+	// 改了标题且头像在 public/friends/<旧名> 下时，顺带把文件改名，避免文件名与站点名脱节
+	if (next.title !== before.title && before.imgurl.startsWith("/friends/")) {
+		const oldPath = path.join("public", before.imgurl);
+		if (fs.existsSync(oldPath)) {
+			const ext = path.extname(before.imgurl).replace(/^\./, "");
+			const newName = safeFileName(next.title, ext);
+			const newRel = `/friends/${newName}`;
+			if (
+				newRel !== before.imgurl &&
+				!fs.existsSync(path.join("public", newRel))
+			) {
+				fs.renameSync(oldPath, path.join("public", newRel));
+				next.imgurl = newRel;
+				console.log(`  头像文件改名：${before.imgurl} → ${newRel}`);
+			}
+		}
+	}
+
+	const updated = replaceEntryAt(text, picked - 1, next);
+	if (updated === null) {
+		console.error("写入失败。");
+		rl?.close();
+		process.exit(1);
+	}
+	fs.writeFileSync(CONFIG_PATH, updated);
+
+	console.log("\n=== 修改结果 ===");
+	const rows = [
+		["站点名", before.title, next.title],
+		["站点地址", before.siteurl, next.siteurl],
+		["头像", before.imgurl || "（空）", next.imgurl || "（空）"],
+		["描述", before.desc, next.desc],
+		["标签", before.tags.join(","), next.tags.join(",")],
+		["权重", String(before.weight), String(next.weight)],
+		["启用", before.enabled ? "是" : "否", next.enabled ? "是" : "否"],
+	];
+	let changed = 0;
+	for (const [label, from, to] of rows) {
+		if (from === to) continue;
+		changed += 1;
+		console.log(`  ${label}: ${from} → ${to}`);
+	}
+	if (changed === 0) console.log("  （没有任何字段发生变化）");
+	console.log(
+		`\n已更新 ${path.relative(process.cwd(), CONFIG_PATH)} 中第 ${picked} 条。`,
+	);
+	console.log("本地 `pnpm dev` 可直接看到效果，推送后线上生效。");
 	rl?.close();
 	process.exit(0);
 }

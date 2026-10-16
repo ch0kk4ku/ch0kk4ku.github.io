@@ -20,6 +20,7 @@
     "import-post": "node scripts/import-post.js",
     "friend": "node scripts/new-friend.js",
     "friend:list": "node scripts/new-friend.js list",
+    "friend:edit": "node scripts/new-friend.js edit",
     "friend:remove": "node scripts/new-friend.js remove",
     "format": "biome format --write ./src ./scripts",
     "lint": "biome check --write ./src ./scripts",
