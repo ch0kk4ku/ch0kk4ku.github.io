@@ -1,14 +1,17 @@
 /**
  * 配置导航：告诉你在哪改什么，并帮你直接打开对应文件。
  *
- * 用法：
- *   pnpm config                 按用途列出所有可改配置（不打开文件）
- *   pnpm config site            打开「站点信息」相关文件（关键词匹配）
- *   pnpm config 公告 友链        可一次给多个关键词
- *   pnpm config --all           打开全部可编辑配置（含内容文件）
- *   pnpm config --folder        直接打开整个 src/config 目录
- *   pnpm config --content       打开日常内容：文章目录 + 关于我 + 留言板 + 友链页
- *   pnpm config --editor=notepad  指定编辑器（默认自动探测 code → notepad）
+ * 用法（用 pnpm cfg，名字与 pnpm 内置命令无冲突）：
+ *   pnpm cfg                     按用途列出所有可改配置（不打开文件）
+ *   pnpm cfg 公告                 打开「公告」相关文件（关键词匹配）
+ *   pnpm cfg 站点 友链            可一次给多个关键词
+ *   pnpm cfg all                 打开全部可编辑配置（含内容文件）
+ *   pnpm cfg content             打开日常内容：文章目录 + 关于我 + 留言板 + 友链页
+ *   pnpm cfg folder              直接打开整个 src/config 目录
+ *   pnpm cfg 公告 --editor=notepad   指定编辑器（默认自动探测 code → notepad）
+ *
+ * 两种写法等价：pnpm cfg all 与 pnpm cfg --all
+ * 直接跑脚本也行：node scripts/cfg.js 公告
  *
  * 说明：只做「打开文件」，不改任何内容。
  */
@@ -281,10 +284,14 @@ for (const a of argv) {
 	}
 }
 
-const showAll = flags.has("all");
-const showFolder = flags.has("folder");
-const showContent = flags.has("content");
+// all / folder / content 既可以写成 --all，也可以直接写成子命令词（pnpm cfg all）
+const MODE_WORDS = ["all", "folder", "content"];
+const showAll = flags.has("all") || keywords.includes("all");
+const showFolder = flags.has("folder") || keywords.includes("folder");
+const showContent = flags.has("content") || keywords.includes("content");
 const explicitEditor = flags.get("editor");
+// 模式词不参与关键词匹配
+const searchKeywords = keywords.filter((k) => !MODE_WORDS.includes(k));
 
 const pad = (s, n) => {
 	// 中文按 2 格宽度估算，保证表格对齐
@@ -372,16 +379,16 @@ if (showContent) {
 	process.exit(0);
 }
 
-if (keywords.length === 0 && !showAll) {
+if (searchKeywords.length === 0 && !showAll && !showFolder && !showContent) {
 	// 只列清单
 	console.log("可编辑的配置与内容（★ = 日常高频）\n");
-	console.log("  用法：pnpm config <关键词>        例如 pnpm config 公告");
-	console.log("        pnpm config 站点 友链       可一次给多个关键词");
-	console.log("        pnpm config --all           打开全部");
+	console.log("  用法：pnpm cfg <关键词>        例如 pnpm cfg 公告");
+	console.log("        pnpm cfg 站点 友链       可一次给多个关键词");
+	console.log("        pnpm cfg all            打开全部");
 	console.log(
-		"        pnpm config --content       打开日常内容（文章/关于我/留言板/友链页）",
+		"        pnpm cfg content        打开日常内容（文章/关于我/留言板/友链页）",
 	);
-	console.log("        pnpm config --folder        打开整个 src/config 目录");
+	console.log("        pnpm cfg folder         打开整个 src/config 目录");
 	printTable(TARGETS);
 	const hot = TARGETS.filter((t) => t.hot);
 	console.log(
@@ -393,10 +400,10 @@ if (keywords.length === 0 && !showAll) {
 	process.exit(0);
 }
 
-const selected = showAll ? TARGETS : match(keywords);
+const selected = showAll ? TARGETS : match(searchKeywords);
 if (selected.length === 0) {
 	console.error(
-		`没有匹配「${keywords.join(" ")}」的目标。运行 pnpm config 查看全部清单。`,
+		`没有匹配「${searchKeywords.join(" ")}」的目标。运行 pnpm cfg 查看全部清单。`,
 	);
 	process.exit(1);
 }
