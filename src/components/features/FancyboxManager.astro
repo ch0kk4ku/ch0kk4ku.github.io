@@ -4,7 +4,8 @@
 
 <script>
   let Fancybox: any;
-  const IMG_SELECTOR = ".custom-md img:not(.card-wiki-link img), #post-cover img, .moment-images img";
+  // data-no-lightbox：带此属性的图片不参与灯箱（例如「常听音乐人」卡片长廊里的封面）
+  const IMG_SELECTOR = ".custom-md img:not(.card-wiki-link img):not([data-no-lightbox]), #post-cover img, .moment-images img";
   const LINK_SELECTOR = ".moment-images a[data-fancybox], [data-fancybox]:not(.moment-images a)";
   const svgBlobUrlCache = new Map<string, string>();
 

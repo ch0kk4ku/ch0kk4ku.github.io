@@ -25,14 +25,13 @@ const FORCE = argv.includes("--force");
 const DRY = argv.includes("--dry-run");
 
 /** 要抓取的歌手：key 为固定标识（文件名/数据键），query 为搜索关键词 */
+// 只抓正文里提到的这 5 位（鎖那、鹿乃 已从正文移除，不再生成卡片）
 const ARTISTS = [
 	{ key: "xu-song", query: "许嵩" },
 	{ key: "zhang-yu-sheng", query: "张雨生" },
 	{ key: "fang-da-tong", query: "方大同" },
 	{ key: "zhou-chuan-xiong", query: "周传雄" },
 	{ key: "dazbee", query: "Dazbee" },
-	{ key: "sana", query: "鎖那" },
-	{ key: "kano", query: "鹿乃" },
 ];
 
 const PHOTO_SIZE = 480; // 卡片显示约 153px，2x/3x 屏 480 足够
@@ -208,8 +207,6 @@ for (const { key, query } of ARTISTS) {
 		alias: (artist.alias ?? [])[0] ?? "",
 		photo: photo?.file ?? before?.photo ?? "",
 		artistId: artist.id,
-		albumCount: artist.albumSize ?? before?.albumCount ?? 0,
-		songCount: artist.musicSize ?? before?.songCount ?? 0,
 		picks: keptPicks ?? (picks.length > 0 ? picks : (before?.picks ?? [])),
 	});
 

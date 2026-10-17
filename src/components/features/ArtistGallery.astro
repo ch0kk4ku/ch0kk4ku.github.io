@@ -30,13 +30,6 @@ const {
 if (!artistGalleryConfig.enable) return;
 
 const artists = (artistGalleryConfig.data ?? []) as ArtistEntry[];
-
-/** 取名字首字做水印装饰（英文名取首字母大写） */
-const watermarkOf = (name: string) => [...name][0]?.toUpperCase() ?? "♪";
-
-/** 正面底部的一行小字：专辑 / 歌曲数量 */
-const albumCountLabel = (artist: ArtistEntry) =>
-	`${artist.albumCount} 专辑 · ${artist.songCount} 首歌`;
 ---
 
 <widget-layout
@@ -47,14 +40,17 @@ const albumCountLabel = (artist: ArtistEntry) =>
 	{
 		title && (
 			<div class="artist-gallery-head">
-				<h3 class="artist-gallery-title">{title}</h3>
+				<h3 class="artist-gallery-title text-neutral-900 dark:text-neutral-100">
+					{title}
+				</h3>
 				{note && <span class="artist-gallery-note">{note}</span>}
 			</div>
 		)
 	}
 
-	<div class="artist-corridor">
-		<ul class="artist-track">
+	<div class="artist-corridor-wrap">
+		<div class="artist-corridor" data-artist-corridor>
+			<ul class="artist-track">
 			{
 				artists.map((artist, index) => (
 					<li class="artist-item">
@@ -70,7 +66,7 @@ const albumCountLabel = (artist: ArtistEntry) =>
 							style={`--artist-stagger: ${index * 45}ms`}
 						>
 							<span class="artist-card-inner">
-								{/* ── 正面 ── */}
+								{/* ── 正面：照片铺满整卡，底部 1/3 渐变遮罩上叠放正名与别名 ── */}
 								<span class="artist-face artist-face-front">
 									<img
 										class="artist-photo"
@@ -80,17 +76,13 @@ const albumCountLabel = (artist: ArtistEntry) =>
 										height="480"
 										loading="lazy"
 										decoding="async"
+										draggable="false"
+										data-no-lightbox
 									/>
-									<span class="artist-photo-mask" aria-hidden="true" />
-									<span class="artist-watermark" aria-hidden="true">
-										{watermarkOf(artist.name)}
-									</span>
+									<span class="artist-scrim" aria-hidden="true" />
 									<span class="artist-front-info">
 										<span class="artist-name">{artist.name}</span>
 										<span class="artist-alias">{artist.alias}</span>
-										<span class="artist-stats">
-											{albumCountLabel(artist)}
-										</span>
 									</span>
 								</span>
 
@@ -103,7 +95,9 @@ const albumCountLabel = (artist: ArtistEntry) =>
 										/>
 										<span class="artist-back-label">推荐给你</span>
 									</span>
-									<span class="artist-back-name">{artist.name}</span>
+									<span class="artist-back-name text-neutral-900 dark:text-neutral-100">
+										{artist.name}
+									</span>
 									<ol class="artist-picks">
 										{artist.picks.slice(0, 4).map((pick) => (
 											<li class="artist-pick">{pick}</li>
@@ -119,6 +113,25 @@ const albumCountLabel = (artist: ArtistEntry) =>
 				))
 			}
 		</ul>
+		</div>
+
+		{/* 桌面端左右翻页按钮（触摸设备隐藏，靠滑动即可） */}
+		<button
+			type="button"
+			class="artist-nav artist-nav-prev"
+			data-artist-prev
+			aria-label="向左查看更多歌手"
+		>
+			<Icon name="material-symbols:chevron-left-rounded" />
+		</button>
+		<button
+			type="button"
+			class="artist-nav artist-nav-next"
+			data-artist-next
+			aria-label="向右查看更多歌手"
+		>
+			<Icon name="material-symbols:chevron-right-rounded" />
+		</button>
 	</div>
 </widget-layout>
 
@@ -144,7 +157,6 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		padding-left: 0.75rem;
 		font-size: 1rem;
 		font-weight: 700;
-		color: var(--deep-text);
 	}
 
 	/* 与主题其它分组标题一致的竖条 */
@@ -172,14 +184,17 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		/* 左右留白让首尾卡片不贴边；上下留白给悬停上浮与阴影呼吸空间
 		   （overflow-x:auto 会让 overflow-y 也变成裁剪，不留白会把上浮效果切掉） */
 		margin: 0 -0.25rem;
-		padding: 0.5rem 0.25rem 0.9rem;
+		padding: 0.35rem 0.25rem 0.6rem;
 		overflow-x: auto;
 		overflow-y: hidden;
-		scroll-snap-type: x proximity;
+		/* 滚动吸附：每张卡片对齐走廊左缘 */
+		scroll-snap-type: x mandatory;
 		scroll-padding-left: 0.25rem;
 		scrollbar-width: none;
 		-ms-overflow-style: none;
 		-webkit-overflow-scrolling: touch;
+		/* 鼠标按住可拖动，光标给出提示 */
+		cursor: grab;
 		/* 两侧渐隐：滚动边缘不是硬切 */
 		mask-image: linear-gradient(
 			to right,
@@ -197,6 +212,106 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		);
 	}
 
+	.artist-corridor.is-dragging {
+		cursor: grabbing;
+	}
+
+	/* 拖动/滚动过程中关闭吸附，等松手静止后再吸附（由脚本切换 is-free） */
+	.artist-corridor.is-free {
+		scroll-snap-type: none;
+	}
+
+	/* 拖动过程中不要选中文字 */
+	.artist-corridor.is-dragging * {
+		user-select: none;
+	}
+
+	/* 卡片整块不可选中、图片不可拖动（拖动由长廊统一接管） */
+	.artist-card,
+	.artist-card * {
+		user-select: none;
+		-webkit-user-select: none;
+		-webkit-user-drag: none;
+	}
+
+	.artist-photo {
+		drag: none;
+		pointer-events: auto;
+	}
+
+	/* ---------------------------------------------------------------------
+	 * 左右翻页按钮（仅指针设备显示）
+	 * ------------------------------------------------------------------- */
+	.artist-corridor-wrap {
+		position: relative;
+	}
+
+	.artist-nav {
+		position: absolute;
+		top: 50%;
+		z-index: 2;
+		display: none;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 1px solid var(--line-divider);
+		border-radius: 9999px;
+		/* 半透明卡片底色 + 背景模糊：压在照片上也看得清，且自动跟随明暗主题 */
+		background: color-mix(in srgb, var(--card-bg) 88%, transparent);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		/* 用主题色：亮色下是深一点的强调色，暗色下自动变浅，两边都看得清 */
+		color: var(--primary);
+		font-size: 1.25rem;
+		cursor: pointer;
+		transform: translateY(-50%);
+		box-shadow: var(--shadow-md);
+		transition:
+			opacity 200ms var(--ease-standard),
+			background-color 200ms var(--ease-standard),
+			color 200ms var(--ease-standard),
+			border-color 200ms var(--ease-standard);
+	}
+
+	.artist-nav-prev {
+		left: -0.6rem;
+	}
+
+	.artist-nav-next {
+		right: -0.6rem;
+	}
+
+	/* 指针设备：默认半透明，悬停长廊时显现 */
+	@media (hover: hover) {
+		.artist-nav {
+			display: grid;
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.artist-corridor-wrap:hover .artist-nav,
+		.artist-nav:focus-visible {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		.artist-nav:hover {
+			border-color: var(--primary);
+			background: var(--btn-plain-bg-hover);
+		}
+
+		.artist-nav:active {
+			scale: 0.94;
+		}
+
+		/* 已经到头的一侧淡出 */
+		.artist-nav:disabled {
+			opacity: 0;
+			pointer-events: none;
+		}
+	}
+
 	.artist-corridor::-webkit-scrollbar {
 		display: none;
 	}
@@ -211,8 +326,8 @@ const albumCountLabel = (artist: ArtistEntry) =>
 	}
 
 	.artist-item {
-		scroll-snap-align: start;
 		flex: 0 0 auto;
+		scroll-snap-align: start;
 	}
 
 	/* 隐藏 checkbox 但保留键盘可聚焦（不可用 display:none / visibility:hidden） */
@@ -233,7 +348,7 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		position: relative;
 		display: block;
 		width: 10.5rem;
-		height: 18.5rem;
+		height: 15rem;
 		perspective: 1000px;
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
@@ -300,96 +415,91 @@ const albumCountLabel = (artist: ArtistEntry) =>
 				0 10px 26px -16px color-mix(in srgb, var(--primary) 60%, transparent);
 		}
 
-		.artist-card:hover .artist-watermark {
-			opacity: 0.2;
-			translate: 0 -3px;
-		}
-
 		.artist-card:hover .artist-pick {
 			border-color: color-mix(in srgb, var(--primary) 32%, var(--line-divider));
 		}
 	}
 
 	/* ---------------------------------------------------------------------
-	 * 正面
+	 * 正面：照片铺满整张卡片，底部 1/3 渐变遮罩，名字压在遮罩上
 	 * ------------------------------------------------------------------- */
 	.artist-face-front {
-		flex-direction: column;
+		/* 正面照片铺满整卡：不要边框，否则照片只到边框内侧，圆角处会露出一条细边 */
+		border: 0;
+		background: var(--muted);
 	}
 
 	.artist-photo {
+		position: absolute;
+		inset: 0;
 		display: block;
 		width: 100%;
-		aspect-ratio: 1 / 1;
+		height: 100%;
+		/* 主题的正文样式会给 img 加 margin: 2em，绝对定位下会把这 32px 算进偏移，
+		   导致图片被顶下来、上方露出卡片底色；必须清零 */
+		margin: 0;
+		border-radius: 0;
 		object-fit: cover;
+		/* 照片多为横图，顶部对齐以保住人脸 */
 		object-position: top center;
-		background: var(--muted);
 		transition: scale 620ms var(--ease-standard);
 	}
 
 	@media (hover: hover) {
 		.artist-card:hover .artist-photo {
-			scale: 1.035;
+			scale: 1.04;
 		}
 	}
 
-	/* 照片底部渐隐，让名字叠在渐变上而不是压在一块色块上 */
-	.artist-photo-mask {
+	/* 底部三分之一：向上渐隐的遮罩，保证文字可读 */
+	.artist-scrim {
 		position: absolute;
-		inset: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 33.3333%;
 		pointer-events: none;
 		background: linear-gradient(
 			to top,
-			var(--card-bg) 22%,
-			color-mix(in srgb, var(--card-bg) 72%, transparent) 42%,
-			transparent 66%
+			rgba(0, 0, 0, 0.74) 0%,
+			rgba(0, 0, 0, 0.52) 38%,
+			rgba(0, 0, 0, 0.22) 72%,
+			rgba(0, 0, 0, 0) 100%
 		);
 	}
 
-	/* 巨型水印字 */
-	.artist-watermark {
-		position: absolute;
-		right: -0.1rem;
-		bottom: 3.4rem;
-		font-size: 4.75rem;
-		font-weight: 900;
-		line-height: 1;
-		color: color-mix(in srgb, var(--primary) 42%, transparent);
-		opacity: 0.12;
-		pointer-events: none;
-		user-select: none;
-		transition:
-			opacity 250ms var(--ease-standard),
-			translate 250ms var(--ease-standard);
-	}
-
 	.artist-front-info {
-		position: relative;
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
 		z-index: 1;
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
-		margin-top: auto;
-		padding: 0 0.8rem 0.7rem;
+		gap: 0.05rem;
+		padding: 0 0.7rem 0.6rem;
 	}
 
+	/* 名字与别名都是压在照片上的，因此用白色 + 轻微阴影，明暗主题下都清晰 */
 	.artist-name {
 		font-size: 1rem;
 		font-weight: 700;
-		line-height: 1.3;
-		color: var(--deep-text);
+		line-height: 1.25;
+		color: #fff;
+		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.artist-alias {
 		font-size: 0.72rem;
 		line-height: 1.3;
-		color: var(--content-meta);
-	}
-
-	.artist-stats {
-		margin-top: 0.15rem;
-		font-size: 0.66rem;
-		color: color-mix(in srgb, var(--primary) 78%, var(--content-meta));
+		color: rgba(255, 255, 255, 0.82);
+		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -419,7 +529,6 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		font-size: 0.95rem;
 		font-weight: 700;
 		line-height: 1.25;
-		color: var(--deep-text);
 	}
 
 	.artist-picks {
@@ -441,7 +550,8 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		background: color-mix(in srgb, var(--primary) 5%, transparent);
 		font-size: 0.72rem;
 		line-height: 1.35;
-		color: var(--deep-text);
+		/* 不用 --deep-text：它在暗色主题下没有覆盖，会变成深色字贴深色底 */
+		color: var(--content-meta);
 		transition: border-color 200ms var(--ease-standard);
 	}
 
@@ -471,7 +581,6 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		.artist-card-inner,
 		.artist-photo,
 		.artist-face,
-		.artist-watermark,
 		.artist-pick {
 			transition: none;
 		}
@@ -487,3 +596,219 @@ const albumCountLabel = (artist: ArtistEntry) =>
 		}
 	}
 </style>
+
+<script>
+	// 桌面端横向浏览增强：滚轮横向滚动 + 按住拖动 + 左右翻页按钮。
+	// 采用幂等初始化（data-ready 标记），Swup 切页后重复执行也不会重复绑定。
+	const initArtistCorridors = () => {
+		for (const el of document.querySelectorAll<HTMLElement>(
+			"[data-artist-corridor]",
+		)) {
+			if (el.dataset.ready === "1") continue;
+			el.dataset.ready = "1";
+
+			// ── 1. 竖向滚轮转换为横向滚动 ────────────────────────────
+			el.addEventListener(
+				"wheel",
+				(event) => {
+					if (el.scrollWidth <= el.clientWidth + 1) return;
+					// 只接管以竖向为主的滚轮，横向手势（触控板左右滑）保持原生
+					if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+					event.preventDefault();
+					el.scrollLeft += event.deltaY;
+				},
+				{ passive: false },
+			);
+
+			// ── 2. 按住拖动 ──────────────────────────────────────────
+			let dragging = false;
+			let startX = 0;
+			let startLeft = 0;
+			let moved = false;
+
+			el.addEventListener("pointerdown", (event) => {
+				if (event.pointerType === "mouse" && event.button !== 0) return;
+				dragging = true;
+				moved = false;
+				startX = event.clientX;
+				startLeft = el.scrollLeft;
+				el.classList.add("is-dragging");
+				el.classList.add("is-free");
+			});
+
+			// 拖动时用 rAF 合并写入，避免每个 pointermove 都写 scrollLeft 引起掉帧
+			let dragTicking = false;
+			let dragTarget = 0;
+			el.addEventListener("pointermove", (event) => {
+				if (!dragging) return;
+				const dx = event.clientX - startX;
+				if (Math.abs(dx) > 3) moved = true;
+				dragTarget = startLeft - dx;
+				if (dragTicking) return;
+				dragTicking = true;
+				requestAnimationFrame(() => {
+					dragTicking = false;
+					el.scrollLeft = dragTarget;
+				});
+			});
+
+			const endDrag = () => {
+				if (!dragging) return;
+				dragging = false;
+				el.classList.remove("is-dragging");
+				// 松手后才开始计时，静止 160ms 再恢复吸附
+				holdFree();
+			};
+			el.addEventListener("pointerup", endDrag);
+			el.addEventListener("pointerleave", endDrag);
+			el.addEventListener("pointercancel", endDrag);
+
+			// 拖动结束后不要误触卡片的翻面（卡片是 label，click 会切换 checkbox）
+			el.addEventListener(
+				"click",
+				(event) => {
+					if (!moved) return;
+					event.preventDefault();
+					event.stopPropagation();
+					moved = false;
+				},
+				true,
+			);
+
+			// ── 3. 无限长廊：复制两份内容（共 3 份），从中间那份开始 ──
+			// 注意：scrollLeft 最大只有 scrollWidth - clientWidth，所以不能用 scrollWidth 做阈值；
+			// 这里以「一份内容的宽度」为周期，滚过一个周期就瞬移回来，视觉上无缝。
+			const track = el.querySelector<HTMLElement>(".artist-track");
+			if (track && track.dataset.cloned !== "1") {
+				const originals = [...track.children];
+				for (let copy = 1; copy <= 2; copy++) {
+					for (const item of originals) {
+						const clone = item.cloneNode(true) as HTMLElement;
+						// 克隆后必须改掉 id / for，否则点击会切到原件那张卡的 checkbox
+						clone.querySelectorAll("[id]").forEach((node) => {
+							node.id = `${node.id}-c${copy}`;
+						});
+						clone.querySelectorAll("label[for]").forEach((label) => {
+							label.setAttribute("for", `${label.getAttribute("for")}-c${copy}`);
+						});
+						// 克隆体是重复内容：对读屏隐藏，且不参与 Tab
+						clone.setAttribute("aria-hidden", "true");
+						clone.querySelectorAll("input").forEach((input) => {
+							input.tabIndex = -1;
+							input.id = `${input.id}`;
+						});
+						track.appendChild(clone);
+					}
+				}
+				track.dataset.cloned = "1";
+			}
+
+			// 一份内容的宽度 = 卡片间距 × 卡数。用缓存值算，避免在 scroll 回调里读
+			// scrollWidth / offsetLeft（都会强制同步布局，拖动时会明显卡顿）。
+			let pitchCache = 0;
+			const measurePitch = () => {
+				const items = el.querySelectorAll<HTMLElement>(".artist-item");
+				if (items.length > 1) {
+					const p = items[1].offsetLeft - items[0].offsetLeft;
+					if (p > 0) pitchCache = p;
+				}
+			};
+			measurePitch();
+			const periodCached = () => {
+				const count = el.querySelectorAll(".artist-item").length / 3;
+				return pitchCache > 0 && count > 0 ? pitchCache * count : 0;
+			};
+
+			// 从「中间那份」的开头开始，左右都能无限滚
+			const w0 = periodCached();
+			if (w0 > 0) el.scrollLeft = w0;
+
+			// 回绕只在每帧做一次（rAF 节流），且用缓存宽度，不触碰布局
+			let ticking = false;
+			const wrapAround = () => {
+				const w = periodCached();
+				if (w <= 0) return;
+				let x = el.scrollLeft;
+				let guard = 0;
+				while (x >= w * 2 && guard++ < 10) x -= w;
+				while (x < w && guard++ < 10) x += w;
+				if (x !== el.scrollLeft) el.scrollLeft = x;
+			};
+			const onScroll = () => {
+				if (ticking) return;
+				ticking = true;
+				requestAnimationFrame(() => {
+					ticking = false;
+					wrapAround();
+				});
+			};
+			el.addEventListener("scroll", onScroll, { passive: true });
+			wrapAround();
+
+			// 尺寸变化时重建缓存（含「一份内容宽度」）
+			window.addEventListener(
+				"resize",
+				() => {
+					measurePitch();
+					const w = periodCached();
+					if (w > 0 && el.scrollLeft <= 1) el.scrollLeft = w;
+				},
+				{ passive: true },
+			);
+
+			// ── 4. 左右翻页按钮：一次只移动一张卡片 ──────────────────
+			const wrap = el.parentElement;
+			const prev = wrap?.querySelector<HTMLButtonElement>("[data-artist-prev]");
+			const next = wrap?.querySelector<HTMLButtonElement>("[data-artist-next]");
+
+			// 卡片间距直接用缓存值（避免每次点击都读 offsetLeft 触发布局）
+			const pitch = () => (pitchCache > 0 ? pitchCache : 180);
+
+			prev?.addEventListener("click", () => {
+				el.scrollBy({ left: -pitch(), behavior: "smooth" });
+			});
+			next?.addEventListener("click", () => {
+				el.scrollBy({ left: pitch(), behavior: "smooth" });
+			});
+
+			// ── 5. 吸附只在松手后生效 ────────────────────────────────
+			// 交互期间给长廊加 is-free（关闭 scroll-snap），静止 160ms 后移除 → 此时才吸附
+			let idleTimer = 0;
+			const releaseSnapLater = () => {
+				window.clearTimeout(idleTimer);
+				idleTimer = window.setTimeout(() => {
+					el.classList.remove("is-free");
+				}, 160);
+			};
+			// 拖动中持续保持 is-free，不在中途恢复吸附
+			const holdFree = () => {
+				el.classList.add("is-free");
+				releaseSnapLater();
+			};
+			el.addEventListener(
+				"wheel",
+				() => {
+					el.classList.add("is-free");
+					releaseSnapLater();
+				},
+				{ passive: true },
+			);
+			el.addEventListener(
+				"touchstart",
+				() => {
+					el.classList.add("is-free");
+					releaseSnapLater();
+				},
+				{ passive: true },
+			);
+			el.addEventListener("touchend", releaseSnapLater, { passive: true });
+			prev?.addEventListener("click", holdFree);
+			next?.addEventListener("click", holdFree);
+		}
+	};
+
+	initArtistCorridors();
+	// Swup 切页后重新初始化（新 DOM），失败也不影响首屏
+	document.addEventListener("swup:contentReplaced", initArtistCorridors);
+	document.addEventListener("astro:page-load", initArtistCorridors);
+</script>

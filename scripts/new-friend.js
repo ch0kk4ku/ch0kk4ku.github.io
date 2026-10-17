@@ -143,6 +143,11 @@ const escapeForTs = (value) =>
 
 const FRIENDS_PUBLIC_DIR = path.resolve("public/friends");
 const EMBED_SIZE_LIMIT = 256 * 1024; // 超过这个大小就不建议内嵌
+
+// 友链头像的尺寸上限：卡片显示 64px，3x 屏取 192px，留余量到 256px 足够清晰。
+// 目标体积用于循环降质量，避免有人上传几 MB 的大图直接进仓库。
+const AVATAR_MAX_SIDE = 256;
+const AVATAR_TARGET_BYTES = 120 * 1024;
 const UA =
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
@@ -236,52 +241,82 @@ async function toSquareBuffer(input, { crop }) {
 	}
 
 	if (!crop || width === 0 || height === 0 || width === height) {
-		const buffer = isBuffer ? input : fs.readFileSync(input);
-		const size = width && height ? `${width}×${height}` : "未知尺寸";
+		// 不裁剪也要压：统一交给下面的编码流程限尺寸/限体积
+		const isAlreadySquare = width === height && width > 0;
+		const out = await encodeAvatar(input, isBuffer, mime);
 		return {
-			buffer,
-			format,
-			mime,
+			buffer: out.buffer,
+			format: out.format,
+			mime: out.mime,
 			cropped: false,
-			note:
-				width === height
-					? `已是正方形（${width}×${height}）`
-					: `保持原比例（${size}）`,
+			note: isAlreadySquare
+				? `已是正方形（${width}×${height}）→ 压缩为 ${out.side}×${out.side}，${(out.buffer.length / 1024).toFixed(1)} KB`
+				: `保持原比例（${width}×${height}）→ 压缩到最长边 ${out.side}，${(out.buffer.length / 1024).toFixed(1)} KB`,
 		};
 	}
 
 	const side = Math.min(width, height);
-	let pipeline = sharp(input, isBuffer ? {} : { failOn: "none" })
-		.rotate() // 依据 EXIF 自动摆正
-		.resize(side, side, { fit: "cover", position: "centre" });
+	const out = await encodeAvatar(input, isBuffer, mime, side);
+	return {
+		buffer: out.buffer,
+		format: out.format,
+		mime: out.mime,
+		cropped: true,
+		note: `已按中间裁剪为 ${out.side}×${out.side}（原 ${width}×${height}），${(out.buffer.length / 1024).toFixed(1)} KB`,
+	};
+}
 
-	if (mime === "image/jpeg")
-		pipeline = pipeline.flatten({ background: "#ffffff" });
+/**
+ * 统一编码：限制最长边不超过 AVATAR_MAX_SIDE，并循环降质量直到体积达标。
+ * 友链卡片头像显示只有 64px，没必要保留原始大图。
+ */
+async function encodeAvatar(input, isBuffer, mime, cropSide) {
+	const limit = cropSide
+		? Math.min(cropSide, AVATAR_MAX_SIDE)
+		: AVATAR_MAX_SIDE;
 
-	switch (mime) {
-		case "image/jpeg":
-			pipeline = pipeline.jpeg({ quality: 88, mozjpeg: true });
-			break;
-		case "image/webp":
-			pipeline = pipeline.webp({ quality: 88 });
-			break;
-		case "image/avif":
-			pipeline = pipeline.avif({ quality: 70 });
-			break;
-		case "image/bmp":
-			pipeline = pipeline.png();
-			break;
-		default:
-			pipeline = pipeline.png({ compressionLevel: 9 });
+	const build = (quality) => {
+		let pipeline = sharp(input, isBuffer ? {} : { failOn: "none" }).rotate();
+		pipeline = cropSide
+			? pipeline.resize(limit, limit, { fit: "cover", position: "centre" })
+			: pipeline.resize({
+					width: limit,
+					height: limit,
+					fit: "inside",
+					withoutEnlargement: true,
+				});
+
+		switch (mime) {
+			case "image/jpeg":
+				return pipeline
+					.flatten({ background: "#ffffff" })
+					.jpeg({ quality, mozjpeg: true })
+					.toBuffer();
+			case "image/webp":
+				return pipeline.webp({ quality }).toBuffer();
+			case "image/avif":
+				return pipeline.avif({ quality }).toBuffer();
+			case "image/bmp":
+			default:
+				return pipeline
+					.png({ compressionLevel: 9, palette: true, quality })
+					.toBuffer();
+		}
+	};
+
+	// 起始质量按格式给一个合理值，超体积再逐档下调
+	let quality = mime === "image/avif" ? 70 : 84;
+	let buffer = await build(quality);
+	while (buffer.length > AVATAR_TARGET_BYTES && quality > 48) {
+		quality -= 12;
+		buffer = await build(quality);
 	}
 
-	const outBuffer = await pipeline.toBuffer();
 	return {
-		buffer: outBuffer,
-		format: mime === "image/bmp" ? "png" : format,
+		buffer,
+		format: mime === "image/bmp" ? "png" : (mime.split("/")[1] ?? "png"),
 		mime: mime === "image/bmp" ? "image/png" : mime,
-		cropped: true,
-		note: `已按中间裁剪为正方形（${width}×${height} → ${side}×${side}）`,
+		side: limit,
 	};
 }
 

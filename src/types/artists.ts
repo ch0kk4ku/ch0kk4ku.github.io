@@ -9,7 +9,5 @@ export type ArtistEntry = {
 	alias: string; // 别名，作为卡片副标题（如「Vae」「小刚」）
 	photo: string; // 图片路径（public 下，如 /artists/xu-song.webp）
 	artistId: number; // 音乐平台歌手 ID
-	albumCount: number; // 专辑数
-	songCount: number; // 歌曲数
 	picks: string[]; // 推荐歌曲（背面展示）
 };
