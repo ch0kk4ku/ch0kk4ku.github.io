@@ -1,7 +1,7 @@
 ---
 title: "MoeCTF 2026 Writeup"
 published: 2026-10-15
-description: "MoeCTF 2026 部分题目的解题记录：Python 沙箱逃逸、开发与运维基础、Web 安全与渗透测试。"
+description: "MoeCTF 2026 部分题目的解题记录。"
 tags: ["MoeCTF"]
 category: "CTF"
 draft: false
