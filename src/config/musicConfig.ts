@@ -23,23 +23,26 @@ export const musicPlayerConfig: MusicPlayerConfig = {
 	// Meting API 配置
 	meting: {
 		// Meting API 地址
-		// ⚠️ 主题原本默认的 https://api.i-meto.com/meting/api 实测已失效（返回 401 服务器未知异常），
-		//    故改用实测可用的 injahow；下面 fallbackApis 里的端点也逐个验证过。
-		api: "https://api.injahow.cn/meting/?server=:server&type=:type&id=:id",
+		// 选型依据（均实测）：
+		//   · 主题默认的 https://api.i-meto.com/meting/api 已失效（返回 401 服务器未知异常）
+		//   · api.injahow.cn 可用，但**歌单有服务端缓存**：改了歌单后台仍返回旧列表（实测 7 首 vs 8 首）
+		//   · api.moeyao.cn 可用且能及时反映歌单改动 → 作为主 API
+		// 末尾的 &r=:r 是缓存击穿参数（播放器会把 :r 替换成随机数），主题原本就有，这里保留
+		api: "https://api.moeyao.cn/meting/?server=:server&type=:type&id=:id&r=:r",
 		// 音乐平台：netease=网易云音乐, tencent=QQ音乐, kugou=酷狗音乐, xiami=虾米音乐, baidu=百度音乐
 		server: "tencent",
 		// 类型：song=单曲, playlist=歌单, album=专辑, search=搜索, artist=艺术家
 		// 注意：QQ 音乐（tencent）不支持 search 与 artist，歌单/单曲/专辑可用
 		type: "playlist",
 		// 歌单 ID（QQ 音乐）
-		// 实测：该歌单 7 首歌曲全部可正常解析出完整音频，且都带歌词与封面
+		// 实测：8 首歌曲均能解析出完整音频，且都带歌词与封面
 		id: "9793910675",
 		// 认证 token（可选）。公开 API 不使用它；只有自建 Meting-API 支持 VIP 时才需要
 		auth: "",
 		// 备用 API 配置（当主 API 失败时使用）
-		// 已实测：moeyao 可用；i-meto 失效、meting.js.org 返回 404，故不再列入
+		// injahow 作为兜底（它有缓存，所以不当主用）；i-meto 已失效、meting.js.org 返回 404，故不列入
 		fallbackApis: [
-			"https://api.moeyao.cn/meting/?server=:server&type=:type&id=:id",
+			"https://api.injahow.cn/meting/?server=:server&type=:type&id=:id&r=:r",
 		],
 	},
 
