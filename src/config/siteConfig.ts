@@ -91,14 +91,25 @@ export const siteConfig: SiteConfig = {
 
 	// Favicon 配置
 	// 如果启用了OpenGraph图片功能，数组中需要包含png格式的favicon图标
+	// 当前使用头像作为标签页图标（由 src/assets/images/avatar.avif 生成）
+	// 另外 public/favicon.ico 也已生成，供浏览器默认请求 /favicon.ico 时使用
 	favicon: [
 		{
-			// 图标文件路径
-			src: "/favicon/firefly-32.png",
-			// 可选，指定主题 'light' | 'dark'
-			// theme: "light",
-			// 可选，图标大小
-			// sizes: "32x32",
+			// 放在第一位：主题会取「第一个 png」作为 apple-touch-icon（iOS 主屏图标）
+			src: "/favicon/avatar-192.png",
+			sizes: "192x192",
+		},
+		{
+			src: "/favicon/avatar-180.png",
+			sizes: "180x180",
+		},
+		{
+			src: "/favicon/avatar-128.png",
+			sizes: "128x128",
+		},
+		{
+			src: "/favicon/avatar-32.png",
+			sizes: "32x32",
 		},
 	],
 
