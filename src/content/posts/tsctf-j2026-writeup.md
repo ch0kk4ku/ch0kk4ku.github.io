@@ -9,15 +9,15 @@ draft: false
 ---
 > 部分题目步骤采用 dsh 或是网页版 ds 或是 bing、各路博客辅助思路。
 
-## abstract
+### abstract
 
-### Dried Milkdragon
+#### Dried Milkdragon
 
 奶龙题，题目给出一张图是某品牌芒果干，在天猫超市转了一圈只看到了同品牌的另一款较大包芒果干，但是经过观察图像发现芒果干袋子的钩子是透明的，而天猫超市（以及后面的永年超市）的正常货架的钩子是非透明的圆柱状，又转了一圈发现之前忽略的在货架边上的一整条挂下来的商品有部分满足该现象，同时观察到图片内芒果干袋子下方有同品牌该产品没有的花纹，而图片左下角有粉色的同款花纹——说明多种口味的该种芒果干在竖行同一处，所以推测这是货架侧面商品，天猫超市中货架侧面没有符合的商品。于是去永年超市，然后便找到目标，商品旁有一个意见本，翻到最后一页即为 flag 。
 
 以上分析过程是无聊且懒得出去的时候想的，有助于加快一点点实地找的速度，其实只需要细心一点去遍历两个超市所有商品即可。
 
-### emoji
+#### emoji
 
 发散能力不够，遂 Deepseek 解出答案。（以下为 ds 原话）
 
@@ -33,9 +33,9 @@ draft: false
 
 虽然我觉得这好雷霆啊这真的简单吗（？
 
-## web
+### web
  
-### 好想玩原神
+#### 好想玩原神
 
 首先观察界面，是个原神登录界面，尝试随便输入用户名与密码，返回零条通行证记录并且 redirect 到原神官网（x
 
@@ -63,19 +63,21 @@ draft: false
 
 要联合查询就要知道查询列数，从返回的 json 可以看出有四个项，故猜测有 4 列，发现确实如此。
 
-```sql
+```payload
 Windfall2407' union select 1,2,3,'4'||'
 ```
 
 然后就是拿表名列名之类的操作了：
 
-```sql
+```payload
 Windfall2407' union select 1,2,3,(select group_concat(name) from sqlite_master where type='table')||'
 Windfall2407' union select 1,2,3,(select group_concat(name) from pragma_table_info('secret_flags'))||'
 Windfall2407' union select 1,2,3,(select flag_value from secret_flags)||'
 ```
 
-### BandInvite
+> 这题对只打过 Moectf2026 的笔者还是有两个很重要的启发：一个就是考察到了笔者不熟悉的 sqlite ，以至于刚开始做的时候总是不小心串到 Mysql 的一些函数、库名中以至于还以为查表名等手段被 ban 了；还有就是把注释给 ban 了，这时候就要尽量注入位置在后面的参数比如 `password` 了，因为少了注释这种 AOE（群伤）杀招，我们就必须考虑到注入参数后面的语句了，而 `password` 譬如对于本题来说后面只有一个 `'` ，减小了使语法有效的难度。
+
+#### BandInvite
 
 发现能注册，随便注册一个用户进去后，发现用户权限不够，则方向应该是想办法提权（？发现 `cookie` 处出现了一个类似 JWT 的 session ，推测要伪造 JWT。
 
@@ -143,11 +145,11 @@ Preview helper: press_kit.attachment(filename, ticket)
 
 此时登录账号发现自己已经变成了 `admin` 身份，可以访问通知预览了。
 
-> [!warning] 注意如果直接 POST claim 会返回 `"error": "roster confirmation required"` ，此事在 `dispatch-note.txt` 中亦有记载—— `Check roster before claiming; keep the same session.`。
+>[!warning] 注意如果直接 POST claim 会返回 `"error": "roster confirmation required"` ，此事在 `dispatch-note.txt` 中亦有记载—— `Check roster before claiming; keep the same session.`。
 
 由于发出去的通知根本没有回显，有些没思路了，于是让 dsh 拿着 admin 身份跑了接口，根据 dsh 发现，当且仅当通知类型为 “临时公告” 即 `custom_stage_notice` 时服务端会进行模板渲染，并且将渲染的成功与否以 `archived/failed` 的状态返回，这也对应了后面出题人发的 hint ：
 
-> 开发人员和店长说，预览不会直接回显渲染结果，但是他忘了清理返回的布尔状态
+ > 开发人员和店长说，预览不会直接回显渲染结果，但是他忘了清理返回的布尔状态
 
 对了 dsh 还发现了如果直接访问或者是在网页端访问的话会提示需要 ticket ，解决方法是在请求体的 `variables` 处增加一个字段 `ticket` 并设值为 `handoff-9c2e7b41` 即可。
 
@@ -172,9 +174,9 @@ Preview helper: press_kit.attachment(filename, ticket)
 
 以上结果皆为成功，说明可以通过 `press_kit.attachment()` 返回的字符串按下标一位一位进行布尔二分从而拿到 flag ，让 ds 写了相关代码，以 `{% if (press_kit.attachment('/f'~'lag', ticket)[i]) == 'T' %}A{% else %}{{1/0}}{% endif %}` 这种方式来将任何表达式的布尔转化为是否抛出异常，成功拿到 flag 。
 
-> [!warning] 这边要注意的是由于 flag 文件末尾存在换行符，所以在读到 `}` 后还会读取出一位字符，需要注意程序的设计。
+>[!warning] 这边要注意的是由于 flag 文件末尾存在换行符，所以在读到 `}` 后还会读取出一位字符，需要注意程序的设计。
 
-### 玛德莱娜小蛋糕
+#### 玛德莱娜小蛋糕
 
 整个页面只有一个上传 GIF 图片的操作空间，推测考点是图片木马。刚开始还是用 `copy /b` 将真实 GIF 和 PHP Payload 拼接，后来一次偶然的尝试发现只需要在文件开头添加魔数 `GIF89a` 即可绕过检验，省了一步 `copy` 操作。
 
@@ -233,7 +235,7 @@ curl -k "https://79546a564770794f7565515a5937384d39476e5762-p80.chal.buptmerak.c
 curl -k "https://79546a564770794f7565515a5937384d39476e5762-p80.chal.buptmerak.cn/storage/tmp/32db9bf55d1d.phtml?cmd=cat%20/var/www/html/flag"
 ```
 
-### MinePortrait
+#### MinePortrait
 
 打开后发现是个星露谷的登陆界面，尝试随便输入账号密码，提示 `Invalid workshop badge.`。
 
@@ -328,11 +330,11 @@ http://[::ffff:7f00:1]/fetch.php?url=php%3A//filter/convert.base64-encode/resour
 
 最终得到的 base64 拿去解码即可获得 flag 。
 
-## misc
+### misc
 
 > 由于这次主要打的方向是 web ，且由于是第一次将 agent 应用在 ctf 中不太会引导 agent ，加上复盘 agent 做题过程花的时间久，导致本来想花时间打的 misc 方向基本上没有实际参与，只是拿 dsh 尝试了几道题，以下题解是尽量尝试整理 ds 的做法所写的。
 
-### play it
+#### play it
 
 签到题，找个解数独的网站，然后写下 python 脚本去批量发送 `set` 命令，最后 `submit` 即可。
 
@@ -419,7 +421,7 @@ p.interactive()
 # 第 9 行: 649715283
 ```
 
-### findit
+#### findit
 
 附件给了 100 个 mp3 ，要在多轮中内完成对指定预处理后的音频段找出其所在的音频以及起始点，查询后得知 **Chroma 特征** 适用于这种预处理后的音频特征识别，所以可以写一个程序来进行特征库建立与自动化识别。
 
@@ -428,7 +430,7 @@ p.interactive()
 > **逐带 z-score 归一**就是“每个波段各自减自己的均值、除自己的标准差”，使各波段均值为 0、标准差为 1。—— deepseek
 > BGM 在对数幅度域近似为每带的常量偏移，逐带减均值除标准差正好把它消掉，让匹配依赖语音的频谱形状而非共享的 BGM。—— deepseek
 
-### !\_MisC\_!（未做出）
+#### !\_MisC\_!（未做出）
 
 先尝试用 `zsteg` 扫了一遍 `icon.png` ，没发现任何问题，然后又用 `grep` 命令扫了一遍目录未发现 flag 标志。
 
@@ -440,9 +442,9 @@ PIP 下载 `Amulet-Core` 后将存档交给 dsh 去分析，但是这方法明�
 
 hint1 的意思大概是调随机刻？hint2 指明了按钮十六进制是 flag 编码后结果。
 
-## AI
+### AI
 
-### Liar’s Bar
+#### Liar’s Bar
 
 红温指数估计是 `temperature` 吧设为 `0.1` ，提示词如下（由 ds 生成）：
 
@@ -500,9 +502,9 @@ JOKER：
 
 > 不过这题也还是有运气成分的，否则如果只有一两枪容错其实也挺难的。
 
-## 附录
+### 附录
 
-### BandInvite CVE-2026-39363 利用脚本
+#### BandInvite CVE-2026-39363 利用脚本
 
 ```python
 #!/usr/bin/env python3
@@ -816,7 +818,7 @@ if __name__ == "__main__":
         sys.exit(130)
 ```
 
-### findit 逐带 z-score 归一匹配脚本
+#### findit 逐带 z-score 归一匹配脚本
 
 ```python
 #!/usr/bin/env python
