@@ -78,7 +78,7 @@ export const friendsConfig: FriendLink[] = [
 	},
 	{
 		title: "宛宛",
-		imgurl: "/friends/wan-wan.jpg",
+		imgurl: "/friends/wan-wan.png",
 		desc: "人生五十年，如梦亦如幻。",
 		siteurl: "https://blog.3w3.asia/",
 		tags: ["Blog"],
