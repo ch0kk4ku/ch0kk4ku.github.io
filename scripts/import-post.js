@@ -1,3 +1,42 @@
+/**
+ * 文章导入工具：把一个 Markdown 文件（Obsidian 笔记）转成博客文章。
+ *
+ * 用法：
+ *   pnpm import-post <文件路径> [选项]
+ *
+ * 选项：
+ *   --slug=<slug>          指定 URL slug（默认由标题拼音生成）
+ *   --title=<标题>         指定标题（默认取正文 h1/h2，其次文件名）
+ *   --date=YYYY-MM-DD      发布日期（默认取源 frontmatter，其次今天；--update 时沿用原值）
+ *   --tags=a,b             标签，逗号分隔
+ *   --category=CTF         分类
+ *   --description=文本      简介（默认取正文前 140 字；--update 时沿用原值）
+ *   --image=./cover.avif   封面
+ *   --strip-prefix         用文件名做标题时去掉「（提交版）」这类括号前缀
+ *                          （默认保留；slug 始终用去掉前缀的干净名字）
+ *   --update               更新已存在的同 slug 文章，保留其 frontmatter 中未被指定的字段
+ *   --dry-run              只预览将要写入的内容与所做的修正，不落盘
+ *
+ * 图片相关：
+ *   --attachments=<目录>   附件目录（默认从笔记目录向上自动找 _Images/ 等）
+ *   --max-width=1600       图片宽度上限
+ *   --max-kb=300           单张体积上限
+ *   --no-images            忽略图片，按纯文本导入
+ *   --allow-missing        附件缺失也继续（默认报错中止）
+ *   --keep-names           图片保留原文件名（不加序号、不改名）
+ *
+ * 内链相关：
+ *   --keep-wikilinks       保留 [[笔记]] 原样（默认转成纯文本）
+ *
+ * 自动做的规范化：
+ *   1. 去掉源文件的 Obsidian frontmatter，换成博客所需字段
+ *   2. `>[!type]` 补齐空格为 `> [!type]`
+ *   3. ` > ` 这类多余缩进的引用行改回 `> `
+ *   4. callout 标记与正文之间的空行去掉
+ *   5. 代码块语言名归一化：payload→sql、console→bash、text/plain→plain
+ *   6. `![[图]]` 找图 → 压缩 → 落到 public/assets/images/posts/<slug>/ → 改写引用
+ *   7. `[[笔记]]` 内链转纯文本并打印清单
+ */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -508,8 +547,8 @@ function firstHeading(text) {
 	return "";
 }
 
-/** 去掉文件名里「（提交版）」「(final)」这类前缀装饰 */
-function cleanFileTitle(name) {
+/** 去掉文件名里「（提交版）」「(final)」这类方括号前缀装饰（仅在显式要求时使用） */
+function stripBracketPrefix(name) {
 	return name.replace(/^[（(【[]\s*[^）)】\]]{1,12}\s*[）)】\]]\s*/, "").trim();
 }
 
@@ -544,9 +583,12 @@ function deriveDescription(text) {
 }
 
 const baseName = path.basename(sourcePath).replace(/\.(md|mdx)$/i, "");
-const fileTitle = cleanFileTitle(baseName) || baseName;
-const title = flags.get("title") || firstHeading(normalizedBody) || fileTitle;
-const slug = flags.get("slug") || slugifyPath(fileTitle);
+// 标题默认沿用文件名原样（含「（提交版）」这类前缀），只有加 --strip-prefix 才去掉；
+// slug 始终用去掉前缀的干净名字，避免 URL 里出现 ti-jiao-ban 这种段。
+const cleanName = stripBracketPrefix(baseName) || baseName;
+const titleSource = flags.has("strip-prefix") ? cleanName : baseName;
+const title = flags.get("title") || firstHeading(normalizedBody) || titleSource;
+const slug = flags.get("slug") || slugifyPath(cleanName);
 
 // ---------------------------------------------------------------------------
 // 图片与内链处理（放在推导简介之前，避免语法污染简介）
