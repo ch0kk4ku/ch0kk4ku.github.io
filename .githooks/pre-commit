@@ -1,0 +1,5 @@
+#!/bin/sh
+# 提交前隐私检查（由 core.hooksPath=.githooks 启用）
+# 绕过方式：git commit --no-verify
+command -v node >/dev/null 2>&1 || exit 0
+node scripts/pre-commit-scan.mjs

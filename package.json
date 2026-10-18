@@ -34,7 +34,9 @@
     "lqips": "npx tsx scripts/generate-lqips.ts",
     "github-cards": "npx tsx scripts/generate-github-card-data.ts",
     "delete-post": "node scripts/delete-post.js",
-    "update-post": "node scripts/import-post.js --update"
+    "update-post": "node scripts/import-post.js --update",
+    "img": "node scripts/img.js",
+    "privacy-check": "node scripts/pre-commit-scan.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
