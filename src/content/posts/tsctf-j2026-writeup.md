@@ -1,5 +1,5 @@
 ---
-title: "TSCTF-J 2026 Writeup"
+title: "TSCTF-J2026 Writeup"
 published: 2026-10-15
 description: "这真的是招新赛吗 qwq"
 image: ""
@@ -7,8 +7,9 @@ tags: ["TSCTF-J"]
 category: "CTF"
 draft: false
 ---
-> 部分题目步骤采用 dsh 或是网页版 ds 或是 bing、各路博客辅助思路。
+> [!note] 本 WP 只涵盖笔者在正赛期间提交正确 flag 的 9 道题与未做出的一道题的一些赛时 WP ，笔者在赛后（如果有）做出的，会放在 Writeup 2 中。
 
+> 部分题目步骤采用 dsh 或是网页版 ds 或是 bing、各路博客辅助思路。
 ## abstract
 
 ### Dried Milkdragon
@@ -63,13 +64,13 @@ draft: false
 
 要联合查询就要知道查询列数，从返回的 json 可以看出有四个项，故猜测有 4 列，发现确实如此。
 
-```payload
+```sql
 Windfall2407' union select 1,2,3,'4'||'
 ```
 
 然后就是拿表名列名之类的操作了：
 
-```payload
+```sql
 Windfall2407' union select 1,2,3,(select group_concat(name) from sqlite_master where type='table')||'
 Windfall2407' union select 1,2,3,(select group_concat(name) from pragma_table_info('secret_flags'))||'
 Windfall2407' union select 1,2,3,(select flag_value from secret_flags)||'
@@ -145,11 +146,11 @@ Preview helper: press_kit.attachment(filename, ticket)
 
 此时登录账号发现自己已经变成了 `admin` 身份，可以访问通知预览了。
 
->[!warning] 注意如果直接 POST claim 会返回 `"error": "roster confirmation required"` ，此事在 `dispatch-note.txt` 中亦有记载—— `Check roster before claiming; keep the same session.`。
+> [!warning] 注意如果直接 POST claim 会返回 `"error": "roster confirmation required"` ，此事在 `dispatch-note.txt` 中亦有记载—— `Check roster before claiming; keep the same session.`。
 
 由于发出去的通知根本没有回显，有些没思路了，于是让 dsh 拿着 admin 身份跑了接口，根据 dsh 发现，当且仅当通知类型为 “临时公告” 即 `custom_stage_notice` 时服务端会进行模板渲染，并且将渲染的成功与否以 `archived/failed` 的状态返回，这也对应了后面出题人发的 hint ：
 
- > 开发人员和店长说，预览不会直接回显渲染结果，但是他忘了清理返回的布尔状态
+> 开发人员和店长说，预览不会直接回显渲染结果，但是他忘了清理返回的布尔状态
 
 对了 dsh 还发现了如果直接访问或者是在网页端访问的话会提示需要 ticket ，解决方法是在请求体的 `variables` 处增加一个字段 `ticket` 并设值为 `handoff-9c2e7b41` 即可。
 
@@ -174,7 +175,7 @@ Preview helper: press_kit.attachment(filename, ticket)
 
 以上结果皆为成功，说明可以通过 `press_kit.attachment()` 返回的字符串按下标一位一位进行布尔二分从而拿到 flag ，让 ds 写了相关代码，以 `{% if (press_kit.attachment('/f'~'lag', ticket)[i]) == 'T' %}A{% else %}{{1/0}}{% endif %}` 这种方式来将任何表达式的布尔转化为是否抛出异常，成功拿到 flag 。
 
->[!warning] 这边要注意的是由于 flag 文件末尾存在换行符，所以在读到 `}` 后还会读取出一位字符，需要注意程序的设计。
+> [!warning] 这边要注意的是由于 flag 文件末尾存在换行符，所以在读到 `}` 后还会读取出一位字符，需要注意程序的设计。
 
 ### 玛德莱娜小蛋糕
 
