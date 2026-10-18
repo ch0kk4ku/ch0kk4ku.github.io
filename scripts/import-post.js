@@ -32,7 +32,7 @@
  *   1. 去掉源文件的 Obsidian frontmatter，换成博客所需字段
  *   2. `>[!type]` 补齐空格为 `> [!type]`
  *   3. ` > ` 这类多余缩进的引用行改回 `> `
- *   4. callout 标记与正文之间的空行去掉
+ *   4. 引用块内的空行一律保留（不改动 callout 与正文之间的空行）
  *   5. 代码块语言名归一化：payload→sql、console→bash、text/plain→plain
  *   6. `![[图]]` 找图 → 压缩 → 落到 public/assets/images/posts/<slug>/ → 改写引用
  *   7. `[[笔记]]` 内链转纯文本并打印清单
@@ -152,7 +152,6 @@ function normalizeBody(text) {
 	const out = [];
 	let fixedCalloutSpace = 0;
 	let fixedIndentedQuote = 0;
-	let fixedCalloutBlank = 0;
 	const fixedLangs = new Set();
 
 	for (let i = 0; i < lines.length; i += 1) {
@@ -195,33 +194,14 @@ function normalizeBody(text) {
 		out.push(line);
 	}
 
-	// 4. callout 标记与正文之间的空行
-	const compacted = [];
-	for (let i = 0; i < out.length; i += 1) {
-		const line = out[i];
-		const next = out[i + 1];
-		const isCalloutHeader = /^>\s*\[![\w-]+\][-+]?\s*.*$/.test(line);
-		if (
-			isCalloutHeader &&
-			next !== undefined &&
-			next.trim() === "" &&
-			out[i + 2] &&
-			/^>/.test(out[i + 2])
-		) {
-			compacted.push(line);
-			i += 1; // 跳过那个空行
-			fixedCalloutBlank += 1;
-			continue;
-		}
-		compacted.push(line);
-	}
+	// 4. 引用块内的空行一律保留（不再自动删除 callout 标记后的空行，
+	//    那会改变你笔记里的原始排版）
+	const compacted = out;
 
 	if (fixedCalloutSpace > 0)
 		modifications.push(`补全 callout 标记空格：${fixedCalloutSpace} 处`);
 	if (fixedIndentedQuote > 0)
 		modifications.push(`修正多余缩进的引用行：${fixedIndentedQuote} 处`);
-	if (fixedCalloutBlank > 0)
-		modifications.push(`删除 callout 标记后的空行：${fixedCalloutBlank} 处`);
 	if (fixedLangs.size > 0)
 		modifications.push(`代码块语言归一化：${[...fixedLangs].join(", ")}`);
 
