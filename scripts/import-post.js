@@ -26,7 +26,8 @@
  *   --keep-names           图片保留原文件名（不加序号、不改名）
  *
  * 内链相关：
- *   --keep-wikilinks       保留 [[笔记]] 原样（默认转成纯文本）
+ *   --keep-wikilinks       保留 [[笔记]] 原样（默认：能对上已有文章就转成 [[slug]]，对不上转纯文本）
+ *   --link-map="A=slug,B=slug"  手动指定「笔记名 → 博客 slug」映射
  *
  * 自动做的规范化：
  *   1. 去掉源文件的 Obsidian frontmatter，换成博客所需字段
@@ -41,6 +42,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { buildPostsIndex, resolveTarget } from "./lib/posts-index.js";
 import { slugifyPath, slugifySegment } from "./lib/slug.js";
 
 const REPO_ROOT = path.resolve(
@@ -462,27 +464,74 @@ async function processImages(body, ctx) {
 }
 
 /**
- * 把 wiki 内链降级为普通文本（博客里没有对应目标，留着会渲染成怪东西）：
- *   [[某笔记]]        → 某笔记
- *   [[某笔记|显示名]]  → 显示名
- *   [[某笔记#小节]]    → 某笔记 › 小节
- * 图片嵌入不在此处理（已由 processImages 处理）。
+ * 处理 wiki 内链：
+ *   - 能映射到已有文章（slug / 标题 / --link-map 指定）→ 改成真正生效的 [[slug]]
+ *   - 映射不到 → 降级为普通文本（博客里没有目标，留着会渲染成怪东西）
+ *
+ * `[[某笔记]]`        → 命中则 `[[slug]]`，否则 `某笔记`
+ * `[[某笔记|显示名]]`  → 命中则 `[[slug|显示名]]`，否则 `显示名`
+ * `[[某笔记#小节]]`    → 命中则 `[[slug#小节]]`，否则 `某笔记 › 小节`
  */
-function stripWikiLinks(text) {
+function stripWikiLinks(text, resolveToSlug) {
 	const stripped = [];
-	const out = text.replace(/(!?)\[\[([^\]\n]+?)\]\]/g, (raw, _bang, inner) => {
-		const parts = inner.split("|");
-		const targetWithAnchor = parts[0].trim();
-		const display = parts.slice(1).join("|").trim();
-		const [target, ...anchorParts] = targetWithAnchor.split("#");
-		const anchor = anchorParts.join("#").trim();
-		const ext = path.extname(target).slice(1).toLowerCase();
-		if (IMAGE_EXTS.has(ext)) return raw; // 图片留给图片流程
-		const plain = display || (anchor ? `${target} › ${anchor}` : target);
-		stripped.push({ raw, plain });
-		return plain;
-	});
-	return { text: out, stripped };
+	const mapped = [];
+	let inFence = false;
+
+	// 逐行处理并跟踪代码块状态：代码块内的 [[...]] 是示例，不能改
+	const out = text
+		.split(/\r?\n/)
+		.map((line) => {
+			if (/^\s*(```|~~~)/.test(line)) {
+				inFence = !inFence;
+				return line;
+			}
+			if (inFence) return line;
+
+			return line.replace(/(!?)\[\[([^\]\n]+?)\]\]/g, (raw, _bang, inner) => {
+				const parts = inner.split("|");
+				const targetWithAnchor = parts[0].trim();
+				const display = parts.slice(1).join("|").trim();
+				const [target, ...anchorParts] = targetWithAnchor.split("#");
+				const anchor = anchorParts.join("#").trim();
+				const ext = path.extname(target).slice(1).toLowerCase();
+				if (IMAGE_EXTS.has(ext)) return raw; // 图片留给图片流程
+
+				// 先尝试映射到已有文章
+				if (resolveToSlug) {
+					const slug = resolveToSlug(target.trim());
+					if (slug) {
+						const linkTarget = anchor ? `${slug}#${anchor}` : slug;
+						const rendered = display
+							? `[[${linkTarget}|${display}]]`
+							: `[[${linkTarget}]]`;
+						mapped.push({ raw, rendered, slug });
+						return rendered;
+					}
+				}
+
+				const plain = display || (anchor ? `${target} › ${anchor}` : target);
+				stripped.push({ raw, plain });
+				return plain;
+			});
+		})
+		.join("\n");
+
+	return { text: out, stripped, mapped };
+}
+
+/** 解析 --link-map="Obsidian笔记名=博客slug,..." */
+function parseLinkMap(raw) {
+	const map = new Map();
+	if (!raw) return map;
+	for (const pair of String(raw).split(/[,;]/)) {
+		const index = pair.lastIndexOf("=");
+		if (index <= 0) continue;
+		map.set(
+			pair.slice(0, index).trim().toLowerCase(),
+			pair.slice(index + 1).trim(),
+		);
+	}
+	return map;
 }
 
 let normalizedBody = normalizeBody(sourceBody).replace(/^\s*\n/, "");
@@ -594,9 +643,17 @@ if (!flags.has("no-images")) {
 	normalizedBody = imageReport.body;
 }
 
+// 内链：能对上已有文章就转成真正的 [[slug]]，对不上才降级为纯文本
+const linkMap = parseLinkMap(flags.get("link-map"));
+const postsIndex = buildPostsIndex();
+const resolveToSlug = (target) => {
+	const { post } = resolveTarget(postsIndex, target, linkMap);
+	return post?.slug ?? null;
+};
+
 const wiki = flags.has("keep-wikilinks")
-	? { text: normalizedBody, stripped: [] }
-	: stripWikiLinks(normalizedBody);
+	? { text: normalizedBody, stripped: [], mapped: [] }
+	: stripWikiLinks(normalizedBody, resolveToSlug);
 normalizedBody = wiki.text;
 
 // --no-images 时图片嵌入会残留，单独提醒（博客里无法渲染 Obsidian 语法）
@@ -763,9 +820,25 @@ if (!flags.has("no-images")) {
 	}
 }
 
+if (wiki.mapped.length > 0) {
+	console.log(`\n内链已关联到已有文章（${wiki.mapped.length} 处）：`);
+	for (const m of wiki.mapped) {
+		console.log(`  ${m.raw} → ${m.rendered}`);
+	}
+}
+
 if (wiki.stripped.length > 0) {
 	console.log(`\n内链转为纯文本（${wiki.stripped.length} 处）：`);
 	for (const s of wiki.stripped) console.log(`  ${s.raw} → ${s.plain}`);
+	if (postsIndex.posts.length > 0) {
+		console.log("  可用目标：");
+		for (const p of postsIndex.posts.slice(0, 10)) {
+			console.log(`    ${p.slug}  （${p.title || p.slug}）`);
+		}
+		console.log(
+			'  如果笔记名和 slug 差别较大，可用 --link-map="笔记名=slug,..." 指定。',
+		);
+	}
 }
 
 if (imageReport.missing.length > 0) {

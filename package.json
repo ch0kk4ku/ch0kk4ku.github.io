@@ -36,7 +36,9 @@
     "delete-post": "node scripts/delete-post.js",
     "update-post": "node scripts/import-post.js --update",
     "img": "node scripts/img.js",
-    "privacy-check": "node scripts/pre-commit-scan.mjs"
+    "privacy-check": "node scripts/pre-commit-scan.mjs",
+    "links": "node scripts/check-links.js",
+    "links:orphans": "node scripts/check-links.js --orphans"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
