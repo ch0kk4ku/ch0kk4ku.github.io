@@ -1,0 +1,69 @@
+/*
+ * 本地补充：KaTeX 公式与宽表格的横向滚动条样式。
+ *
+ * 上游行为：src/utils/content-overflow-utils.ts 会给 .katex-display 外包一个
+ * .katex-display-container，并明确使用「浏览器原生滚动条」，因此在 Windows 上
+ * 会出现很粗的系统滚动条，和整体风格不搭。
+ *
+ * 这里只在样式层覆盖为细的、跟主题色走的滚动条，不改上游 JS。
+ * 覆盖范围：
+ *   - .katex-display-container（公式，运行时由脚本插入）
+ *   - .horizontal-scroll-container（宽表格等）
+ *   - .katex-display 自身（防止某些情况下溢出发生在这里）
+ */
+
+/* ---------- Firefox：标准属性 ---------- */
+.katex-display-container,
+.horizontal-scroll-container,
+.katex-display {
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--primary) 38%, transparent) transparent;
+}
+
+/* ---------- WebKit / Blink ---------- */
+.katex-display-container::-webkit-scrollbar,
+.horizontal-scroll-container::-webkit-scrollbar,
+.katex-display::-webkit-scrollbar {
+	height: 6px;
+	width: 6px;
+	background: transparent;
+}
+
+.katex-display-container::-webkit-scrollbar-track,
+.horizontal-scroll-container::-webkit-scrollbar-track,
+.katex-display::-webkit-scrollbar-track {
+	background: transparent;
+	border-radius: 9999px;
+}
+
+.katex-display-container::-webkit-scrollbar-thumb,
+.horizontal-scroll-container::-webkit-scrollbar-thumb,
+.katex-display::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--primary) 32%, transparent);
+	border-radius: 9999px;
+	transition: background-color 150ms var(--ease-standard, ease);
+}
+
+.katex-display-container:hover::-webkit-scrollbar-thumb,
+.horizontal-scroll-container:hover::-webkit-scrollbar-thumb,
+.katex-display:hover::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--primary) 62%, transparent);
+}
+
+/* 同时悬停滚动条本身时更明显一点 */
+.katex-display-container::-webkit-scrollbar-thumb:hover,
+.horizontal-scroll-container::-webkit-scrollbar-thumb:hover,
+.katex-display::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in srgb, var(--primary) 80%, transparent);
+}
+
+/* 让滚动条与内容之间留一点呼吸空间，避免 thumb 压住公式下缘 */
+.katex-display-container {
+	padding-bottom: 2px;
+}
+
+/* 公式本体不要自己再滚一次，交给外层容器 */
+.katex-display {
+	overflow-x: visible;
+	overflow-y: visible;
+}
