@@ -1,6 +1,6 @@
-packages:
+﻿packages:
   - '.'
 allowBuilds:
   esbuild: true
   workerd: true
-storeDir: D:\documents\blogs\.pnpm-store
+storeDir: .pnpm-store
