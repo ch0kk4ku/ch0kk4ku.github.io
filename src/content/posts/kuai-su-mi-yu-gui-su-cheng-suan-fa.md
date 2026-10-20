@@ -1,7 +1,7 @@
 ---
 title: "快速幂与龟速乘算法"
 published: 2026-10-20
-description: "起因是笔者初中同学的同学发给了他一个题目，内容是："
+description: "让我们来复习一些算法..."
 image: ""
 tags: []
 category: "算法"
