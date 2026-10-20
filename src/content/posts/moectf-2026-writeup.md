@@ -1,5 +1,5 @@
 ---
-title: "Python 沙箱逃逸"
+title: "MoeCTF 2026 Writeup"
 published: 2026-10-15
 description: "MoeCTF 2026 部分题目的解题记录。"
 tags: ["MoeCTF"]
