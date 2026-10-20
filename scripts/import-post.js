@@ -6,7 +6,7 @@
  *
  * 选项：
  *   --slug=<slug>          指定 URL slug（默认由标题拼音生成）
- *   --title=<标题>         指定标题（默认取正文 h1/h2，其次文件名）
+ *   --title=<标题>         指定标题（默认取正文 h1，没有 h1 则用文件名）
  *   --date=YYYY-MM-DD      发布日期（默认取源 frontmatter，其次今天；--update 时沿用原值）
  *   --tags=a,b             标签，逗号分隔
  *   --category=CTF         分类
@@ -562,16 +562,17 @@ const STRUCTURAL_HEADINGS = new Set([
 ]);
 
 function firstHeading(text) {
-	// 只把 h1/h2 当作可能的文章标题：更深的标题通常是"题目名/小节名"，
-	// 拿它当标题会出现「标题变成某个子标题」的问题（Obsidian 笔记很常见）。
+	// 只认 h1（`# 标题`）作为文章标题：
+	//   - h2 及更深通常是"章节/题目名"，拿它当标题会出现「标题变成某个小节」
+	//   - Obsidian 笔记经常整篇没有 h1（从 ## 起手），这时应回退到文件名
 	// 先剔除代码块，否则 Python 里的 `# -*- coding -*-` 会被当成 h1。
 	const withoutCode = text
 		.replace(/```[\s\S]*?```/g, "")
 		.replace(/~~~[\s\S]*?~~~/g, "");
 	for (const line of withoutCode.split("\n")) {
-		const m = line.match(/^(#{1,2})\s+(.+)$/);
-		if (m && !STRUCTURAL_HEADINGS.has(m[2].trim().toLowerCase()))
-			return m[2].trim();
+		const m = line.match(/^#\s+(.+)$/);
+		if (m && !STRUCTURAL_HEADINGS.has(m[1].trim().toLowerCase()))
+			return m[1].trim();
 	}
 	return "";
 }
