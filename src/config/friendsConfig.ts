@@ -91,9 +91,8 @@ export const friendsConfig: FriendLink[] = [
 		desc: "Pwn 大手子。",
 		siteurl: "https://kioroshiaki.github.io/",
 		tags: ["Blog"],
-		weight: 13,
+		weight: 15,
 		enabled: true,
-		// 该头像本身是圆形裁切（四角透明），用圆形边框避免方形圆角露出四角
 		shape: "circle",
 	},
 	{
@@ -112,6 +111,15 @@ export const friendsConfig: FriendLink[] = [
 		siteurl: "https://aclosure.github.io/links/",
 		tags: ["Blog"],
 		weight: 12,
+		enabled: true,
+	},
+	{
+		title: "Miso Blog",
+		imgurl: "/friends/miso-blog.png",
+		desc: "让梦想起飞的不是鸡翅，而是少年气。",
+		siteurl: "https://miso2233.github.io/",
+		tags: ["Blog"],
+		weight: 15,
 		enabled: true,
 	},
 ];
