@@ -97,20 +97,21 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 	});
 
 	// 自定义导航栏链接
-	links.push({
-		name: "链接",
-		url: "#",
-		icon: "material-symbols:link",
-		// 子菜单
-		children: [
-			{
-				name: "GitHub",
-				url: "https://github.com/ch0kk4ku",
-				external: true,
-				icon: "fa7-brands:github",
-			},
-		],
-	});
+	// 已按需求关闭「链接 → GitHub」按钮（该分组只有这一项，整组移除）
+	// links.push({
+	// 	name: "链接",
+	// 	url: "#",
+	// 	icon: "material-symbols:link",
+	// 	// 子菜单
+	// 	children: [
+	// 		{
+	// 			name: "GitHub",
+	// 			url: "https://github.com/ch0kk4ku",
+	// 			external: true,
+	// 			icon: "fa7-brands:github",
+	// 		},
+	// 	],
+	// });
 
 	// 文档链接
 	// links.push({
