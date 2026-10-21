@@ -69,40 +69,35 @@
 }
 
 /* ---------------------------------------------------------------------------
- * 行高：解决"行内公式比较高时，行与行挤在一起"的问题
+ * 解决"行内公式比较高时，行与行挤在一起"
  *
- * KaTeX 的行内公式会刻意超出自己的行盒（分数、求和上下限、矩阵、根式等），
- * 而正文行高是固定的（prose 的 line-height），于是相邻两行在视觉上被挤到一起。
+ * 根因（DevTools 实测）：KaTeX 的行内公式是 display:inline，它内部用 .vlist /
+ * .pstrut 把上下标、分式上下叠放，这些部分会超出公式自身的行盒。实测某个含
+ * 上下标堆叠的公式盒高 56.4px，而所在行行高只有 36.4px —— 结果它向上压住上一行
+ * 20px、向下压住下一行 20px，表现为"行与行很挤"。
  *
- * 处理方式：按"是否含公式 / 是否含高结构"分两档放宽行高，只影响含公式的那一行。
- * 用 :has() 精确命中，现代浏览器均支持；不支持时退回原始行高，不会更糟。
+ * 只调 line-height 没用：实测把行高提到 4.4em，公式自身盒子也跟着变高，
+ * 与上一行文字的间隙始终是 -20px。真正有效的是把公式变成 inline-block ——
+ * 只有 inline-block 的 margin box 才会计入行盒高度，行盒于是自动被撑开。
+ *
+ * 实测对比（同一公式）：间隙 -20px → +17.4px，且公式底部与同行文字底部对齐。
  * ------------------------------------------------------------------------- */
 
-/* 第一档：只要这一行有行内公式，就稍微放松（避免上下标贴着下一行） */
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex) {
+/* 行内公式：改成 inline-block，让行盒跟着公式长高（不应用于块级公式） */
+.custom-md p .katex,
+.custom-md li .katex,
+.custom-md td .katex,
+.custom-md th .katex,
+.custom-md blockquote .katex {
+	display: inline-block;
+}
+
+/* 含公式的行保留少量行高余量，避免普通上下标紧贴相邻行 */
+.custom-md :is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex) {
 	line-height: 1.95;
 }
 
-/* 第二档：含真正会超出行盒的结构，进一步放宽 */
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mfrac),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mtable),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .op-limits),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .sqrt),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .delimsizing),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .munder),
-.custom-md
-	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mover) {
-	line-height: 2.6;
-}
-
-/* 行内公式自身不要被父级行高挤压：保留 KaTeX 自带的 1.2 行盒 */
+/* 行内公式自身保持 KaTeX 的 1.2 行盒，不被父级行高拉伸 */
 .custom-md .katex {
 	line-height: 1.2;
 }
