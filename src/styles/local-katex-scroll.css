@@ -67,3 +67,49 @@
 	overflow-x: visible;
 	overflow-y: visible;
 }
+
+/* ---------------------------------------------------------------------------
+ * 行高：解决"行内公式比较高时，行与行挤在一起"的问题
+ *
+ * KaTeX 的行内公式会刻意超出自己的行盒（分数、求和上下限、矩阵、根式等），
+ * 而正文行高是固定的（prose 的 line-height），于是相邻两行在视觉上被挤到一起。
+ *
+ * 处理方式：按"是否含公式 / 是否含高结构"分两档放宽行高，只影响含公式的那一行。
+ * 用 :has() 精确命中，现代浏览器均支持；不支持时退回原始行高，不会更糟。
+ * ------------------------------------------------------------------------- */
+
+/* 第一档：只要这一行有行内公式，就稍微放松（避免上下标贴着下一行） */
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex) {
+	line-height: 1.95;
+}
+
+/* 第二档：含真正会超出行盒的结构，进一步放宽 */
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mfrac),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mtable),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .op-limits),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .sqrt),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .delimsizing),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .munder),
+.custom-md
+	:is(p, li, td, th, dd, dt, blockquote, figcaption):has(.katex .mover) {
+	line-height: 2.6;
+}
+
+/* 行内公式自身不要被父级行高挤压：保留 KaTeX 自带的 1.2 行盒 */
+.custom-md .katex {
+	line-height: 1.2;
+}
+
+/* 独立成块的公式（$$...$$），上下留出更多空间，避免紧贴相邻段落 */
+.custom-md .katex-display-container {
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
+}
+
