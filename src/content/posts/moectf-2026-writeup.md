@@ -1,5 +1,5 @@
 ---
-title: "MoeCTF 2026 Writeup"
+title: "Moectf 2026 Writeup"
 published: 2026-10-15
 description: "MoeCTF 2026 部分题目的解题记录。"
 tags: ["MoeCTF"]
@@ -11,7 +11,7 @@ image: ""
 > 
 > 由于神秘原因，导致后半程才开始写 Writeup ，目前仅有部分题目写了 WP 。
 > 
-> 等最近的事情忙完了应该会补上一些其他题目的 WP 。持续更新中...
+> 等最近的事情忙完了应该会补上一些其他题目的 WP 。疑似要咕咕咕了...
 
 ## Python 沙箱逃逸
 
